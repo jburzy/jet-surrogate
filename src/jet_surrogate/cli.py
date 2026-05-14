@@ -84,6 +84,7 @@ def main(
             large_r_pt_cut=pt_cut,
             dr_match=dr_match,
             max_events=max_events,
+            max_particles=max_particles,
             output_npz=output,
             verbose=verbose,
         )
@@ -98,8 +99,8 @@ def main(
             click.echo(f"Particle features: {len(results['feature_names'])} vars — {', '.join(results['feature_names'])}")
         if output:
             click.echo(f"\nOutput           : {output}")
-            click.echo("  /jets              [n_jets, 4]           pt  eta  phi  mass")
-            click.echo(f"  /particles/<i>     [n_particles, {len(results['feature_names'])}]   one dataset per jet")
+            click.echo(f"  /jets         [n_jets]                  pt eta energy mass phi")
+            click.echo(f"  /particles    [n_jets, {max_particles}]  {len(results['feature_names'])} features + valid mask")
     else:
         click.echo(f"Model : {model}")
         click.echo(f"Cuts  : score > {threshold}")

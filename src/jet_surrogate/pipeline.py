@@ -1,12 +1,16 @@
 """Full analysis pipeline: HEPMC → jets → particle matching → ONNX → acceptance."""
 
+import math
 from typing import Optional, Dict, List
 import numpy as np
 
 from .reader import iter_events
 from .reconstruction import reconstruct_r04_jets, recluster_r10_jets
 from .matching import match_particles_to_jet
-from .features import extract_features, INT_VARS, FLOAT_VARS, ALL_VARS
+from .features import (
+    extract_features, features_to_row,
+    ALL_VARS, JETS_DTYPE, PARTICLES_DTYPE,
+)
 from .inference import OnnxJetScorer
 
 
@@ -39,6 +43,7 @@ def run_reco(
     large_r_pt_cut: float = 200.0,
     dr_match: float = 1.4,
     max_events: Optional[int] = None,
+    max_particles: int = 200,
     output_npz: Optional[str] = None,
     verbose: bool = False,
 ) -> Dict:
@@ -53,13 +58,15 @@ def run_reco(
         jet_pt          – np.ndarray of all jet pTs
         jet_eta         – np.ndarray of all jet etas
         jet_n_particles – np.ndarray of matched particle counts per jet
-        features        – np.ndarray [n_jets, max_particles, N_FEATURES] float32
-        mask            – np.ndarray [n_jets, max_particles] bool
+        jets            – structured np.ndarray [n_jets] with JETS_DTYPE
+        particles       – structured np.ndarray [n_jets, max_particles] with PARTICLES_DTYPE
+        feature_names   – list of field names (from ALL_VARS)
 
-    If output_npz is given, the arrays are also saved to that file.
+    If output_npz is given, jets and particles arrays are saved to that HDF5 file.
     """
-    all_jet_pt, all_jet_eta, all_jet_phi, all_jet_mass, all_jet_npart = [], [], [], [], []
-    all_features: List[List[Dict]] = []
+    all_jet_rows: List[tuple] = []
+    all_particle_rows: List[List[Dict]] = []
+    all_jet_npart: List[int] = []
 
     n_events = 0
     for event in iter_events(hepmc_file):
@@ -68,55 +75,40 @@ def run_reco(
 
         jets = _reco_event(list(event.particles), large_r_pt_cut, dr_match)
         for jet in jets:
-            all_jet_pt.append(jet["pt"])
-            all_jet_eta.append(jet["eta"])
-            all_jet_phi.append(jet["phi"])
-            all_jet_mass.append(jet["mass"])
+            e = math.sqrt(jet["pt"] ** 2 * math.cosh(jet["eta"]) ** 2 + jet["mass"] ** 2)
+            all_jet_rows.append((jet["pt"], jet["eta"], e, jet["mass"], jet["phi"]))
+            all_particle_rows.append(jet["features"])
             all_jet_npart.append(len(jet["features"]))
-            all_features.append(jet["features"])
 
         n_events += 1
         if verbose and n_events % 100 == 0:
             print(f"  Processed {n_events} events …")
 
-    n_jets = len(all_jet_pt)
-    n_features = len(ALL_VARS)
+    n_jets = len(all_jet_rows)
 
-    def _particle_array(plist):
-        arr = np.zeros((len(plist), n_features), dtype=np.float32)
-        for j, pf in enumerate(plist):
-            for k, var in enumerate(INT_VARS):
-                arr[j, k] = float(pf["ints"][var])
-            for k, var in enumerate(FLOAT_VARS):
-                arr[j, len(INT_VARS) + k] = pf["floats"][var]
-        return arr
+    jets_arr = np.array(all_jet_rows, dtype=JETS_DTYPE) if n_jets > 0 else np.zeros(0, dtype=JETS_DTYPE)
+
+    parts_arr = np.zeros((n_jets, max_particles), dtype=PARTICLES_DTYPE)
+    for i, feat_list in enumerate(all_particle_rows):
+        for j, feat in enumerate(feat_list[:max_particles]):
+            parts_arr[i, j] = features_to_row(feat)
 
     result = {
         "n_events": n_events,
         "n_jets": n_jets,
-        "jet_pt": np.array(all_jet_pt, dtype=np.float32),
-        "jet_eta": np.array(all_jet_eta, dtype=np.float32),
-        "jet_phi": np.array(all_jet_phi, dtype=np.float32),
-        "jet_mass": np.array(all_jet_mass, dtype=np.float32),
+        "jet_pt": jets_arr["pt"] if n_jets > 0 else np.array([], dtype=np.float32),
+        "jet_eta": jets_arr["eta"] if n_jets > 0 else np.array([], dtype=np.float32),
         "jet_n_particles": np.array(all_jet_npart, dtype=np.int32),
-        "particle_arrays": [_particle_array(plist) for plist in all_features],
+        "jets": jets_arr,
+        "particles": parts_arr,
         "feature_names": ALL_VARS,
     }
 
     if output_npz:
         import h5py
-        jet_arr = np.column_stack([
-            result["jet_pt"], result["jet_eta"],
-            result["jet_phi"], result["jet_mass"],
-        ])
         with h5py.File(output_npz, "w") as hf:
-            jets_ds = hf.create_dataset("jets", data=jet_arr)
-            jets_ds.attrs["feature_names"] = ["pt", "eta", "phi", "mass"]
-
-            parts_grp = hf.create_group("particles")
-            parts_grp.attrs["feature_names"] = ALL_VARS
-            for i, arr in enumerate(result["particle_arrays"]):
-                parts_grp.create_dataset(str(i), data=arr)
+            hf.create_dataset("jets", data=jets_arr)
+            hf.create_dataset("particles", data=parts_arr)
 
     return result
 

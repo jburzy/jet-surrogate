@@ -3,6 +3,8 @@
 import math
 from typing import Dict
 
+import numpy as np
+
 try:
     from particle import Particle as _PDGParticle
     _HAS_PARTICLE_LIB = True
@@ -23,6 +25,50 @@ FLOAT_VARS = [
 
 ALL_VARS = INT_VARS + FLOAT_VARS
 N_FEATURES = len(ALL_VARS)  # 32
+
+JETS_DTYPE = np.dtype([
+    ("pt",     "<f4"),
+    ("eta",    "<f4"),
+    ("energy", "<f4"),
+    ("mass",   "<f4"),
+    ("phi",    "<f4"),
+])
+
+PARTICLES_DTYPE = np.dtype([
+    ("pdgId",           "<i4"),
+    ("charge",          "<i4"),
+    ("child0PdgId",     "<i4"),
+    ("child1PdgId",     "<i4"),
+    ("pt",              "<f4"),
+    ("mass",            "<f4"),
+    ("energy",          "<f4"),
+    ("eta",             "<f2"),
+    ("phi",             "<f2"),
+    ("deta",            "<f2"),
+    ("dphi",            "<f2"),
+    ("dr",              "<f2"),
+    ("decayVertexX",    "<f2"),
+    ("decayVertexY",    "<f2"),
+    ("decayVertexZ",    "<f2"),
+    ("Lxy",             "<f2"),
+    ("decayVertexDPhi", "<f2"),
+    ("decayVertexDEta", "<f2"),
+    ("prodVertexX",     "<f2"),
+    ("prodVertexY",     "<f2"),
+    ("prodVertexZ",     "<f2"),
+    ("prodLxy",         "<f2"),
+    ("child0Pt",        "<f4"),
+    ("child0Eta",       "<f2"),
+    ("child0Phi",       "<f2"),
+    ("child0E",         "<f4"),
+    ("child0M",         "<f4"),
+    ("child1Pt",        "<f4"),
+    ("child1Eta",       "<f2"),
+    ("child1Phi",       "<f2"),
+    ("child1E",         "<f4"),
+    ("child1M",         "<f4"),
+    ("valid",           "?"),
+])
 
 
 def _charge(pdgid: int) -> int:
@@ -158,3 +204,20 @@ def extract_features(particle, jet_eta: float = 0.0, jet_phi: float = 0.0) -> Di
             "child1E": c1_e, "child1M": c1_m,
         },
     }
+
+
+def features_to_row(feat: Dict) -> tuple:
+    """Convert extract_features() output to a tuple compatible with PARTICLES_DTYPE."""
+    i = feat["ints"]
+    f = feat["floats"]
+    return (
+        i["pdgId"], i["charge"], i["child0PdgId"], i["child1PdgId"],
+        f["pt"], f["mass"], f["energy"], f["eta"], f["phi"],
+        f["deta"], f["dphi"], f["dr"],
+        f["decayVertexX"], f["decayVertexY"], f["decayVertexZ"],
+        f["Lxy"], f["decayVertexDPhi"], f["decayVertexDEta"],
+        f["prodVertexX"], f["prodVertexY"], f["prodVertexZ"], f["prodLxy"],
+        f["child0Pt"], f["child0Eta"], f["child0Phi"], f["child0E"], f["child0M"],
+        f["child1Pt"], f["child1Eta"], f["child1Phi"], f["child1E"], f["child1M"],
+        True,
+    )
