@@ -23,7 +23,7 @@ class _Jet:
 def _eta(px: float, py: float, pz: float) -> float:
     pt = math.sqrt(px * px + py * py)
     if pt == 0.0:
-        return math.copysign(1e9, pz)
+        return -999.0
     p = math.sqrt(pt * pt + pz * pz)
     ct = max(-1.0 + 1e-12, min(1.0 - 1e-12, pz / p))
     return -0.5 * math.log((1.0 - ct) / (1.0 + ct))
