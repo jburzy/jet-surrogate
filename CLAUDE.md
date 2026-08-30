@@ -315,6 +315,15 @@ Preview chain with the preliminary tagger, isolated outputs:
 
 ## Reinterpretation service
 
+**Deployed 2026-08-29 evening** on CERN PaaS, project `prism`, site
+https://prism.web.cern.ch (`oc apply -k deploy/paas` from lxplus by the
+author; the PaaS API is not reachable from OSCER). Default quota is 1 CPU
+of requests: web 250m + one worker 500m. Quota increase and internet
+visibility (webservices.web.cern.ch, otherwise ERR_EMPTY_RESPONSE from
+outside CERN) are on the author's side. New image on every push to `main`
+touching src/analyses/Dockerfile (GHCR, package public); pick it up with
+`oc rollout restart deploy/jet-surrogate-web deploy/jet-surrogate-worker`.
+
 **Analysis library** (author's design, 2026-08-29): the site is a library
 of preserved analyses, each with its own surrogate, added by PR. Records
 live in `analyses/<id>/analysis.yaml` (+ model files, README.md model
