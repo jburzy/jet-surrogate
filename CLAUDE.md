@@ -313,69 +313,20 @@ Preview chain with the preliminary tagger, isolated outputs:
 `models/prelim/tagger` (copy), `data/scores_prelim`,
 `models/prelim/surrogate`, `results_prelim` (jobs 33387295-97).
 
-## Reinterpretation service
+## PRISM (separate repository)
 
-**Second library entry, 2026-08-30: `atlas-exot-2022-04-calratio`.** Wraps
-the six scikit-learn random forests published with the ATLAS CalRatio
-paper (Zenodo 12957031, sklearn 1.4.2 pickles loaded under 1.9 with the
-version warning suppressed). `predictor.py` builds the published CSV
-features from HepMC (per LLP: Lxy, |z| in m, eta, pT, ET = sqrt(pT^2+m^2),
-|pdg| of the decay product; W/Z pT, eta), applies the authors' validity
-guard (mean decay position in the calorimeters, else -1) and reports the
-region A efficiency plus B, C, D as quantities. Models are `assets`
-(downloaded from Zenodo into `JS_ASSET_DIR`, ~1 GB unpacked, symlinked on
-OSCER at `data/external/atlas-exot-2022-04-calratio`); the selection is a
-job `option`. Validation: our Pythia ggH -> S(55)S(55) -> bb sample
-(`cards/pythia/ggh_ss_bb.cmnd`, `generate --card`) gives effA 0.0007 vs
-0.0009 from the authors' CSV through the same model; feature means agree
-to ~10%. Gotcha: Pythia 8.312 writes the hadrons of a hadron-like LLP
-decay as direct daughters (no parton-level b quarks), whereas the authors'
-records had child_pdgId = 5, so the feature is inferred from the hadron
-content (b hadron -> 5, c -> 4, else 21) with a `child_pdgid` override.
-
-**Deployed 2026-08-29 evening** on CERN PaaS, project `prism`, site
-https://prism.web.cern.ch (`oc apply -k deploy/paas` from lxplus by the
-author; the PaaS API is not reachable from OSCER). Default quota is 1 CPU
-of requests: web 250m + one worker 500m. Quota increase and internet
-visibility (webservices.web.cern.ch, otherwise ERR_EMPTY_RESPONSE from
-outside CERN) are on the author's side. New image on every push to `main`
-touching src/analyses/Dockerfile (GHCR, package public); pick it up with
-`oc rollout restart deploy/jet-surrogate-web deploy/jet-surrogate-worker`.
-
-**Analysis library** (author's design, 2026-08-29): the site is a library
-of preserved analyses, each with its own surrogate, added by PR. Records
-live in `analyses/<id>/analysis.yaml` (+ model files, README.md model
-card, figures/); `service/registry.py` validates and loads them and maps
-`predictor.type` to the class defined in the analysis' own `predictor.py`
-(no built-in types: the emerging-jets predictor lives in its directory);
-the worker caches one predictor per analysis; `predict --analysis` uses the
-same registry. Nothing in the service or front end is specific to the
-emerging-jets surrogate, which is the example entry `emerging-jets-delphes`.
-`tests/test_registry.py` + `.github/workflows/validate-analyses.yml` gate
-PRs. Front end: IBM Carbon (IBM CDN only), conventions copied from the
-author's site `jburzy.github.io` (`service/static/`).
-
-Proof of concept (2026-08-29): `Dockerfile` (pixi `infer` env: pythia8 for the
-particle table, hepmc3, fastjet, awkward, torch; 2 GB, no Delphes/ROOT/
-Lightning) + `models/release/` (versioned surrogate, `MODEL.md`) +
-`.github/ISSUE_TEMPLATE/reinterpret.yml` + `.github/workflows/{build-image,
-reinterpret}.yml`: an issue with a HepMC URL triggers `jet-surrogate predict`
-in the container on a GitHub runner and the efficiency is posted as a
-comment. Needs the repo on GitHub (no remote yet) and the GHCR package made
-public. `predict` was validated in the `infer` env.
-
-Chosen production route (author): **CERN PaaS** (OpenShift, paas.cern.ch)
-hosting a FastAPI web pod + worker pods from the same image, PVC for
-uploads/results, site name via webservices.web.cern.ch, image from GHCR or
-CERN Harbor; inference in the pods, batch offload (HTCondor at CERN or an
-OSCER pull worker) only if inputs grow. Built (2026-08-29): `service/{jobs,app,worker}.py`,
-`jet-surrogate serve|worker`, `deploy/paas/` (kustomize: ConfigMap, PVC
-RWX, web + worker Deployments, Service, Route, cleanup CronJob),
-`deploy/README.md`; `pixi run -e infer test-service` passes end to end.
-Still to do: the author creates the PaaS project, registers the site name,
-decides SSO vs open access, makes the GHCR package public; then
-`oc apply -k deploy/paas`. Later: a HepMC validation report before running,
-a compiled HepMC reader (~7 events/s now), batch offload for large inputs.
+The web service, the analysis library (including the ATLAS CalRatio entry
+built on Zenodo 12957031), the CERN PaaS deployment and the GitHub
+reinterpretation workflow moved on 2026-08-30 to
+https://github.com/burzynski-lab/prism (site https://prism.web.cern.ch).
+This repository is the training side only: nothing here is imported by
+PRISM. The emerging-jets entry there carries its own copy of the inference
+code (`analyses/emerging-jets-delphes/surrogate/`), verified to reproduce
+this chain's per-jet probabilities exactly; particle charges there come
+from the PDG numbering scheme (checked against Pythia's table). Releasing
+a new surrogate means a pull request to PRISM with the new `surrogate.pt`,
+figures, validation table and version. Leftovers on OSCER from the
+CalRatio work: `data/external/calratio`, `data/test/calratio`.
 
 ## Next steps
 
@@ -389,5 +340,3 @@ a compiled HepMC reader (~7 events/s now), batch offload for large inputs.
    points).
 3. Truth-jet threshold below 150 GeV (the labels-only SR reference sits
    3-5% below the actual SR efficiency).
-4. Service: build `serve`/`worker` + `deploy/paas/` once the author opens
-   the PaaS project; push the repo to GitHub for the issue-driven PoC.

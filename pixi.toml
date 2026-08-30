@@ -18,7 +18,7 @@ apply-tagger    = "jet-surrogate apply-tagger"
 train-surrogate = "jet-surrogate train-surrogate"
 evaluate        = "jet-surrogate evaluate"
 visualize       = "jet-surrogate visualize"
-test            = "pytest tests/ -v --ignore=tests/test_service.py --ignore=tests/test_predictor_plugin.py"
+test            = "pytest tests/ -v"
 paper           = "tectonic paper/main.tex"
 
 [dependencies]
@@ -70,36 +70,5 @@ cuda = "12"
 pytorch-gpu = "*"
 cuda-version = "12.*"
 
-# Slim inference stack for the reinterpretation service (no Delphes/ROOT/Lightning):
-#   pixi install -e infer && pixi run -e infer jet-surrogate predict --analysis <id> --hepmc ...
-[feature.infer.dependencies]
-python = "3.12.*"
-pythia8 = ">=8.312"          # particle table (charges) only
-hepmc3 = "*"                 # pyHepMC3 reader/writer
-fastjet = ">=3.4"
-numpy = "*"
-awkward = ">=2"
-uproot = ">=5"
-vector = "*"
-h5py = "*"
-scipy = "*"
-pyyaml = "*"
-pytorch = ">=2.4"
-# web service (jet-surrogate serve / worker)
-fastapi = "*"
-uvicorn = "*"
-python-multipart = "*"
-httpx = "*"                  # API tests
-markdown = "*"               # analysis README rendering
-scikit-learn = "*"           # pickled sklearn surrogates (atlas-exot-2022-04-calratio)
-pytest = "*"
-[feature.infer.tasks]
-test-service = "pytest tests/test_service.py tests/test_predictor_plugin.py -v"     # pixi run -e infer test-service
-serve        = "jet-surrogate serve"
-worker       = "jet-surrogate worker"
-[feature.infer.pypi-dependencies]
-jet-surrogate = { path = ".", editable = true }
-
 [environments]
 gpu = { features = ["gpu"] }
-infer = { features = ["infer"], no-default-feature = true }

@@ -44,8 +44,21 @@ def _hm():
 
 
 def _open_reader(path: str | Path):
+    """Reader for HepMC2 or HepMC3 ASCII; gzipped files are decompressed to a
+    temporary file first (pyHepMC3 reads plain files only)."""
     hm = _hm()
     path = str(path)
+    with open(path, "rb") as f:
+        magic = f.read(2)
+    if magic == b"\x1f\x8b":
+        import gzip
+        import shutil
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(suffix=".hepmc", delete=False)
+        with gzip.open(path, "rb") as fi:
+            shutil.copyfileobj(fi, tmp)
+        tmp.close()
+        path = tmp.name
     head = Path(path).open("rb").read(200)
     if b"HepMC::Version 2" in head or b"HepMC::IO_GenEvent" in head:
         return hm.ReaderAsciiHepMC2(path)

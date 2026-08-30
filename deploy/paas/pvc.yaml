@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jet-surrogate-data
-spec:
-  accessModes: [ReadWriteMany]      # web and worker pods share the job directory (CephFS on CERN PaaS)
-  resources:
-    requests:
-      storage: 50Gi          # jobs + downloaded assets (~1 GB for the CalRatio BDTs)

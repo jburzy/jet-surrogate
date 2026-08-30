@@ -7,10 +7,8 @@
     jet-surrogate train-surrogate truth-particle transformer (GPU)
     jet-surrogate evaluate        surrogate closure -> results/summary.json
     jet-surrogate visualize       every figure, from stored outputs only
-    jet-surrogate predict         HepMC (or skim) -> surrogate -> SR efficiency of a new model
+    jet-surrogate predict         HepMC (or skim) -> a surrogate checkpoint -> SR efficiency of a new model
     jet-surrogate export-hepmc    Delphes generator record -> HepMC3 (cross-checks, examples)
-    jet-surrogate serve           web service: upload HepMC, get the SR efficiency
-    jet-surrogate worker          service worker (runs queued jobs)
 
 Compute steps never plot; ``visualize`` never computes.
 """
@@ -31,8 +29,6 @@ COMMANDS = {
     "visualize": "jet_surrogate.commands.visualize",
     "predict": "jet_surrogate.commands.predict",
     "export-hepmc": "jet_surrogate.commands.export_hepmc",
-    "serve": "jet_surrogate.commands.serve",
-    "worker": "jet_surrogate.commands.worker",
 }
 
 

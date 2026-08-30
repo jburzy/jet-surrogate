@@ -5,7 +5,7 @@ data
 data/
 logs/
 .cometml-runs/
-# trained models (released surrogates live in analyses/<id>/, which is versioned including figures)
+# trained models (the released surrogate is published in the PRISM repository)
 models/
 # results, figures and rendered documents
 results/
@@ -28,8 +28,3 @@ paper/*.out
 slurm/manifest_*.txt
 slurm/skim_list.txt
 .DS_Store
-# the analysis library is versioned in full, including its figures and models
-!analyses/**
-analyses/*/.assets/
-analyses/**/__pycache__/
-analyses/**/*.pyc

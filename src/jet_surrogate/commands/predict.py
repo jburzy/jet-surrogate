@@ -1,15 +1,21 @@
-"""Predict the signal-region efficiency of a new model from generator truth
-with the predictor of one library analysis.
+"""Predict the signal-region efficiency of a new model from generator truth.
 
-    jet-surrogate predict --analysis <id> --hepmc events.hepmc [more.hepmc ...] [--option name=value]
-    jet-surrogate predict --analysis <id> --skim data/skim/<sample>.h5   (analyses whose predictor supports skims)
+    jet-surrogate predict --model models/surrogate/surrogate.pt --hepmc events.hepmc [more.hepmc ...]
+    jet-surrogate predict --model models/surrogate/surrogate.pt --skim data/skim/signal_m10_ctau0.1mm_seed1.h5
 
-This is the reinterpretation entry point: no detector simulation. The
-analysis directory (analyses/<id>/) supplies the model and the code that
-turns the event record into a prediction; this command only dispatches.
-Writes <out>/<stem>.json (summary: n_events, sr_efficiency +- error, any
-analysis-specific quantities) and <out>/<stem>.h5 (per-event probabilities
-plus whatever extra arrays the predictor returns).
+This is the reinterpretation entry point: no detector simulation, no tagger.
+Generator particles (HepMC2/3, optionally gzipped, or the truth tables of an
+existing skim) are clustered into truth large-R jets, the surrogate returns
+a probability per jet that the detector-level tagger would select it, and
+the per-event probability of the two-jet signal region follows from the
+Poisson binomial. Writes <out>/<stem>.json (n_events, sr_efficiency +-
+error, hard-threshold variant, mean per-jet probability) and <out>/<stem>.h5
+(per-event P and the per-jet probabilities with their jet kinematics).
+
+The released surrogate is served to users by PRISM
+(https://github.com/burzynski-lab/prism), which carries its own copy of the
+inference code; this command is the training-side equivalent for closure
+checks on arbitrary checkpoints (.pt or Lightning .ckpt).
 """
 
 from __future__ import annotations
@@ -20,59 +26,82 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from ..metrics import predicted_sr_efficiency, prob_at_least, sr_efficiency
+from ..training import load_checkpoint, pick_device, score_padded
+
 
 def add_arguments(ap) -> None:
-    ap.add_argument("--analysis", required=True, help="analysis id from the library (analyses/<id>/analysis.yaml)")
+    ap.add_argument("--model", required=True, help=".pt inference checkpoint or Lightning .ckpt")
     ap.add_argument("--hepmc", nargs="*", type=Path, default=[], help="HepMC2/3 files")
-    ap.add_argument("--skim", nargs="*", type=Path, default=[],
-                    help="skim HDF5 files, for predictors that implement run_skim (closure studies)")
-    ap.add_argument("--model", default=None, help="model file overriding the one named in the record (e.g. a .ckpt)")
+    ap.add_argument("--skim", nargs="*", type=Path, default=[], help="skim HDF5 files (truth tables)")
     ap.add_argument("--out", default="results/predict")
-    ap.add_argument("--option", action="append", default=[], metavar="NAME=VALUE",
-                    help="per-analysis option (see the analysis record), e.g. --option selection=CR+2J")
     ap.add_argument("--max-events", type=int, default=None)
+    ap.add_argument("--chunk", type=int, default=2000)
     ap.add_argument("--device", default=None)
+
+
+def _truth_from_hepmc(path: Path, max_events, chunk):
+    from ..hepmc_io import read_hepmc
+    from ..skim import skim_truth
+    jets, parts, n_ev = [], [], 0
+    for batch in read_hepmc(path, max_events=max_events, chunk=chunk):
+        tj, tp = skim_truth(batch.part)
+        tj["event"] += n_ev
+        jets.append(tj); parts.append(tp); n_ev += len(batch)
+        print(f"  {path.name}: {n_ev} events, {sum(len(j) for j in jets)} truth jets", flush=True)
+    if n_ev == 0:
+        raise SystemExit(f"{path}: no events could be read (is it HepMC2/3 ASCII?)")
+    return np.concatenate(jets), np.concatenate(parts), n_ev
+
+
+def _truth_from_skim(path: Path, max_events):
+    with h5py.File(path, "r") as h:
+        jets, parts, n_ev = h["truth_jets"][...], h["truth_parts"][...], int(h.attrs["n_events"])
+    if max_events is not None and max_events < n_ev:
+        keep = jets["event"] < max_events
+        jets, parts, n_ev = jets[keep], parts[keep], max_events
+    return jets, parts, n_ev
+
+
+def predict_sample(jets: np.ndarray, parts: np.ndarray, n_events: int, model, pre, device) -> tuple[dict, np.ndarray, np.ndarray]:
+    logit = score_padded(model, pre, parts, device) if len(parts) else np.zeros(0, np.float32)
+    prob = 1.0 / (1.0 + np.exp(-logit))
+    eff, err = predicted_sr_efficiency(jets["event"], prob, n_events)
+    eff_thr, err_thr = sr_efficiency(jets["event"], prob > 0.5, n_events)
+    order = np.argsort(jets["event"], kind="stable")
+    ev, pr = jets["event"][order], prob[order]
+    starts = np.searchsorted(ev, np.arange(n_events), side="left")
+    stops = np.searchsorted(ev, np.arange(n_events), side="right")
+    per_event = np.array([prob_at_least(pr[a:b], 2) if b > a else 0.0 for a, b in zip(starts, stops)])
+    summary = {"n_events": int(n_events), "n_truth_jets": int(len(jets)),
+               "sr_efficiency": eff, "sr_efficiency_err": err,
+               "sr_efficiency_threshold05": eff_thr, "sr_efficiency_threshold05_err": err_thr,
+               "mean_jet_probability": float(prob.mean()) if len(prob) else None}
+    return summary, per_event, prob
 
 
 def run(args) -> None:
     if not args.hepmc and not args.skim:
         raise SystemExit("give --hepmc and/or --skim inputs")
-    from ..service import registry
-    from ..service.predictors import call_run
+    device = pick_device(args.device)
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
-
-    a = registry.load(strict=False).get(args.analysis)
-    if a is None:
-        raise SystemExit(f"unknown analysis '{args.analysis}' (see analyses/)")
-    if args.model:
-        a.model_path = Path(args.model).resolve()
-    if a.record.get("assets"):
-        a.fetch_assets()
-    predictor = a.predictor(args.device or "cpu")
-    options = dict(kv.split("=", 1) for kv in args.option)
-    for o in a.record.get("options", []):
-        options.setdefault(o["name"], o.get("default", o["choices"][0]))
-    max_events = args.max_events or a.record.get("max_events", 10**9)
-
+    model, pre, _ = load_checkpoint(Path(args.model), device)
+    model.to(device)
     for path in args.hepmc:
-        summary, per_event, extras = call_run(predictor, path, max_events,
-                                              progress=lambda m: print(f"  {path.name}: {m}", flush=True), options=options)
-        summary.update({"input": str(path), "model_file": str(a.model_path)})
-        _write(out, f"{path.stem}_hepmc", summary, per_event, extras)
-    if args.skim and not hasattr(predictor, "run_skim"):
-        raise SystemExit(f"the predictor of '{a.id}' does not support --skim inputs")
+        jets, parts, n_ev = _truth_from_hepmc(path, args.max_events, args.chunk)
+        _write(out, f"{path.name.split('.')[0]}_hepmc", args.model, path, *predict_sample(jets, parts, n_ev, model, pre, device), jets)
     for path in args.skim:
-        summary, per_event, extras = predictor.run_skim(path, args.max_events)
-        summary.update({"input": str(path), "model_file": str(a.model_path)})
-        _write(out, f"{path.stem}_skim", summary, per_event, extras)
+        jets, parts, n_ev = _truth_from_skim(path, args.max_events)
+        _write(out, f"{path.stem}_skim", args.model, path, *predict_sample(jets, parts, n_ev, model, pre, device), jets)
 
 
-def _write(out: Path, stem: str, summary: dict, per_event, extras: dict) -> None:
+def _write(out: Path, stem: str, model: str, src: Path, summary: dict, per_event, prob, jets) -> None:
+    summary.update({"input": str(src), "model": str(model)})
     (out / f"{stem}.json").write_text(json.dumps(summary, indent=1))
     with h5py.File(out / f"{stem}.h5", "w") as h:
         h.create_dataset("event_probability", data=np.asarray(per_event, np.float32))
-        for k, v in extras.items():
-            h.create_dataset(k, data=v)
+        h.create_dataset("jet_probability", data=prob)
+        h.create_dataset("truth_jets", data=jets)
         h.attrs.update({k: v for k, v in summary.items() if isinstance(v, (int, float, str))})
     print(f"{stem}: {summary['n_events']} events, SR efficiency {summary['sr_efficiency']:.4f} "
           f"+- {summary['sr_efficiency_err']:.4f}", flush=True)

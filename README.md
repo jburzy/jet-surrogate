@@ -169,60 +169,26 @@ and on seeds the tagger never saw.
 
 ```bash
 jet-surrogate generate --sample signal --ctau 0.1 --mpid 10 --nevents 10000 --format hepmc   # or any generator's HepMC2/3
-jet-surrogate predict --analysis emerging-jets-delphes --hepmc data/hepmc/signal_m10_ctau0.1mm_seed1.hepmc
+jet-surrogate predict --model models/surrogate/surrogate.pt --hepmc data/hepmc/signal_m10_ctau0.1mm_seed1.hepmc
 ```
 
 `predict` clusters truth jets from the generator record, applies the
-surrogate, and writes `results/predict/<stem>_hepmc.json` with the
+surrogate checkpoint, and writes `results/predict/<stem>_hepmc.json` with the
 signal-region efficiency (Poisson-binomial over the per-jet probabilities,
 with its uncertainty) and an HDF5 with the per-event probabilities.
 `export-hepmc` dumps the generator record of a Delphes file to HepMC3 for
 cross-checks (the HepMC and Delphes paths agree to 2e-7 per jet).
 
-## The analysis library and the web service
+## Releasing the surrogate
 
-The service hosts a library of preserved analyses, one directory each under
-`analyses/`, added by pull request:
-
-```
-analyses/<analysis-id>/
-  analysis.yaml       title, experiment, status, signal-region definition, inputs, predictor, limits, figures
-  surrogate.pt        the surrogate model (+ .onnx and preprocessor JSON)
-  README.md           model card shown on the analysis page
-  figures/*.png       validation figures shown on the analysis page
-```
-
-`tests/test_registry.py` (run by the `validate-analyses` workflow on every
-PR) checks each record. An analysis brings its own inference code as
-`predictor.py` next to the record (a registered `Predictor` subclass named
-by `predictor.type`), may declare large model files under `assets` (fetched
-once from their URL into `JS_ASSET_DIR`) and per-job choices under
-`options` (a selector on the submit page). `analyses/_template/` is the
-starting point. Entries: `emerging-jets-delphes` (the surrogate built here)
-and `atlas-exot-2022-04-calratio` (the ATLAS CalRatio search through the
-collaboration's published reinterpretation BDTs, Zenodo 12957031). Each entry ships its own
-`predictor.py`; the service knows only the `Predictor` interface, so
-nothing outside `analyses/<id>/` is specific to a model or a physics
-scenario. The example `emerging-jets-delphes` is the surrogate built here.
-
-```bash
-pixi install -e infer
-pixi run -e infer serve                 # http://localhost:8080: Carbon front end + JSON API (/api, /docs)
-pixi run -e infer worker                # second shell: runs queued jobs
-pixi run -e infer test-service          # end-to-end test on a tiny Pythia sample
-jet-surrogate predict --analysis emerging-jets-delphes --hepmc events.hepmc   # the same, from the command line
-```
-
-Jobs are queued in `JS_SERVICE_DIR` (SQLite + one directory per job) and
-executed by any number of workers; uploads are deleted after processing and
-results expire (`JS_JOB_TTL_HOURS`). The front end (`service/static/`, IBM
-Carbon, no build step) has pages for the library, each analysis, submission
-with upload progress, job status and results, contribution instructions and
-the API. `Dockerfile` packages everything; `deploy/paas/` holds the
-OpenShift manifests and `deploy/README.md` the CERN PaaS steps. GitHub
-issues opened with the *Reinterpretation request* template are processed by
-the `reinterpret` workflow with the same container (a zero-infrastructure
-fallback).
+The trained surrogate is served to users by **PRISM**
+(https://github.com/burzynski-lab/prism, https://prism.web.cern.ch), the
+analysis library and web service, as the entry
+`analyses/emerging-jets-delphes/`. That entry carries its own copy of the
+inference code (truth jets, features, transformer), so a release is a pull
+request to PRISM that updates `surrogate.pt`, the figures, the validation
+table and the version in `analysis.yaml`. Nothing in this repository is
+needed at inference time.
 
 ## Layout
 
@@ -239,16 +205,12 @@ src/jet_surrogate/
   features.py                 track / particle feature tables, padding, transforms
   skim.py                     ROOT -> HDF5 per-jet tables (skim_truth: the generator-only half)
   hepmc_io.py                 HepMC2/3 reader, HepMC3 writer (predict, export-hepmc, generate --format hepmc)
-  service/                    web service: registry of analyses, FastAPI app, SQLite job store, worker, static front end
   data.py                     skim discovery, seed splits, in-memory tables
   models.py, training.py      transformer, preprocessing, inference checkpoints, ONNX export
   lightning/                  Lightning data module, module, callbacks, CLI (training)
   configs/                    tagger.yaml, surrogate.yaml
   metrics.py                  working points, Poisson-binomial SR efficiency
 slurm/                        generation arrays, GPU wrapper, ML dependency chain, re-skim, status, tools/
-analyses/                     the analysis library (one directory per preserved analysis)
 paper/                        JHEP-style draft (pixi run paper)
-deploy/paas/                  OpenShift manifests for CERN PaaS (deploy/README.md)
-Dockerfile, .github/          inference image, issue-driven reinterpretation workflow
 tests/                        unit tests (pixi run test)
 ```
