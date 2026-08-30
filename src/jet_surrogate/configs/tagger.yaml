@@ -1,0 +1,45 @@
+# jet-surrogate train-tagger --config src/jet_surrogate/configs/tagger.yaml [--section.key=value ...]
+seed_everything: 0
+name: tagger
+
+model:
+  d_model: 128
+  n_heads: 8
+  n_layers: 4
+  dropout: 0.1
+  lr: 3.0e-4
+  weight_decay: 0.01
+  warmup_steps: 500
+
+data:
+  task: tagger
+  data_dir: data/skim
+  batch_size: 512
+  num_workers: 0          # tensors are sliced in-process; forked workers deadlocked on the GPU node
+  fit_files: 6            # files per sample used for the normalization statistics
+  max_jets_per_file: null
+  max_files: null         # debug cap, per sample and split
+  ctaus: null             # restrict the signal lifetimes, e.g. [0.01, 0.1, 1]
+
+trainer:
+  max_epochs: 30
+  accelerator: auto
+  devices: 1
+  precision: 16-mixed
+  gradient_clip_val: 1.0
+  log_every_n_steps: 50
+  default_root_dir: logs
+  enable_progress_bar: false
+  logger:
+    class_path: lightning.pytorch.loggers.CometLogger
+    init_args:
+      project: jet-surrogate
+  callbacks:
+    - class_path: jet_surrogate.lightning.callbacks.Checkpoint
+      init_args: {monitor_loss: val/loss}
+    - class_path: jet_surrogate.lightning.callbacks.SaveRunConfig
+    - class_path: jet_surrogate.lightning.callbacks.EpochHistory
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args: {monitor: val/loss, patience: 6, mode: min, min_delta: 1.0e-5}
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args: {logging_interval: step}

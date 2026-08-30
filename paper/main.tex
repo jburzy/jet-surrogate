@@ -1,0 +1,787 @@
+% Truth-level surrogate models for machine-learned emerging-jet searches - draft
+% JHEP preprint style (jheppub.sty). Build: pixi run paper
+\documentclass[a4paper,11pt]{article}
+\usepackage{jheppub}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\captionsetup[subfigure]{skip=1pt}
+\setlength{\emergencystretch}{1em}
+
+\graphicspath{{../results/figures/}}
+
+% ------------------------------------------------------------------ macros
+\newcommand{\stub}[1]{\begin{center}\fbox{\parbox{0.92\textwidth}{\color{red!70!black}\textbf{STUB:} #1}}\end{center}}
+\newcommand{\todo}[1]{{\color{red!70!black}[TODO: #1]}}
+\newcommand{\dnought}{d_0}
+\newcommand{\znought}{z_0}
+\newcommand{\ctau}{c\tau}
+\newcommand{\pid}{\pi_{\mathrm{D}}}
+\newcommand{\rhod}{\rho_{\mathrm{D}}}
+\newcommand{\qD}{q_{\mathrm{D}}}
+\newcommand{\dR}{\Delta R}
+\newcommand{\pT}{p_{\mathrm{T}}}
+\newcommand{\mpid}{m_{\pid}}
+\newcommand{\effSR}{\varepsilon_{\mathrm{SR}}}
+% unnumbered bold heading on its own line
+\newcommand{\obshead}[1]{\par\medskip\noindent{\bfseries #1}\par\nobreak\smallskip}
+
+% Alternative titles, to choose from:
+%   Reinterpreting machine-learned LHC searches with truth-level surrogate models
+%   Truth-level surrogates for detector-level machine-learned taggers
+%   Learning the detector response of machine-learned taggers from generator truth
+%   Surrogate models for the reinterpretation of low-level machine-learning selections at the LHC
+%   From generator to tagger: truth-level surrogates for machine-learned searches
+\title{Reinterpreting machine-learned LHC searches with truth-level surrogate models}
+\author{Jackson Burzynski}
+\emailAdd{jackson.carl.burzynski@cern.ch}
+
+\abstract{The reinterpretation of published LHC results with new
+theoretical models is one of the most efficient ways to extend the
+enormous investment represented by a dedicated search, but an
+increasing number of analyses rely on machine-learning-based selection
+algorithms operating on low-level detector inputs, whose response to
+new signals cannot be assessed without full detector simulation and
+reconstruction. We study surrogate models trained on truth-particle
+information to approximate the detector-level efficiency of such an
+analysis. The method is generic: a selection built on a custom jet
+tagger with constituent-level inputs is replaced by a network that
+consumes the generator record of the same jet and predicts the tagger
+decision, and per-jet predictions are combined into event-level
+acceptances without further approximation. We demonstrate it in a
+fully controlled setting with a search for emerging jets as the
+example, chosen because its signal topology depends on many dark-sector
+parameters and its selection rests on a transformer tagger over
+reconstructed tracks. A tagger is trained on the tracks inside
+large-radius jets, a signal region is defined by two tagged jets at a
+working point of $10^{3}$ background rejection, and a second
+transformer operating only on the generator-level particles inside a
+jet is trained to predict the tagger decision. The surrogate
+reproduces the detector-level signal-region efficiency across dark-pion
+proper lifetimes from $0.01$ to $5$~mm, and generalizes to dark-pion
+masses and dark-sector couplings not seen during training to within
+\todo{X\%}, at a computational cost that bypasses detector simulation
+entirely. Nothing in the construction is specific to dark showers or to
+jets, and the same strategy applies to any analysis whose selection is a
+machine-learned function of low-level reconstructed objects, including
+event-level classifiers.}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+One of the primary objectives of the LHC is a comprehensive search
+program for beyond the Standard Model (BSM) phenomena, including new
+heavy resonances, dark matter, supersymmetric particles, and exotic
+long-lived particles. Despite the breadth of searches performed by the
+LHC experiments thus far, no statistically significant evidence of new
+physics has been observed. A central challenge of the LHC program is
+that the space of viable BSM scenarios is too broad to be fully covered
+by dedicated searches. Physics analyses at the LHC represent an
+enormous investment of time and expertise, with a typical search
+taking more than two years and multiple PhD-student FTEs to complete.
+The reinterpretation of published results using new theoretical models
+is one of the most efficient ways to extend this investment. However,
+processing such models through the full chain of detector simulation,
+reconstruction, and collaboration-specific analysis pipelines is
+computationally prohibitive given the breadth of potential BSM models.
+Moreover, only a small fraction of LHC analyses provide the input
+material needed for external groups to carry out reinterpretation
+using particle-level information alone. Existing reinterpretation
+tools such as \textsc{Contur}~\cite{Butterworth:2016sqg} have made
+important progress by leveraging the measurements preserved in the
+\textsc{Rivet} library~\cite{Buckley:2010ar} to test BSM scenarios
+without requiring detector simulation or experiment-specific
+reconstruction algorithms. By construction, however, such tools are
+limited to unfolded fiducial measurements and cannot assess the
+sensitivity of dedicated BSM searches. This limitation is becoming
+increasingly significant as more analyses rely heavily on
+machine-learning-based selection algorithms operating on low-level
+detector inputs, whose response to new theoretical models cannot be
+easily assessed with existing fast-simulation frameworks such as
+\textsc{Delphes}~\cite{deFavereau:2013fsa}.
+
+One promising approach to addressing this challenge is the use of a
+\emph{surrogate model} trained on truth-particle-level information to
+approximate the detector-level efficiency of a given analysis,
+bypassing the need for full detector simulation and reconstruction.
+The surrogate model concept has been demonstrated in
+Ref.~\cite{Corpe:2025rtz}, which trained a boosted decision tree to
+approximate the selection efficiency of a search for displaced jets in
+the ATLAS calorimeter~\cite{ATLAS:CalRatio}. That analysis, however,
+selects on a small number of high-level per-jet quantities. The open
+question addressed here is whether the same strategy survives contact
+with a selection built on a low-level machine-learned tagger, in
+which the detector response to a new signal is encoded in the
+correlations among tens of reconstructed tracks per jet rather than in
+a handful of physically motivated variables.
+
+The strategy studied here is generic. Any selection built on a
+machine-learned tagger with low-level inputs defines, for each object it
+acts on, a binary detector-level outcome. A surrogate is a network that
+consumes the generator-level description of the same object and is
+trained to predict that outcome, so that the per-object probabilities it
+returns can be combined into the event-level acceptance of the analysis
+from the truth record alone. Nothing in this construction depends on
+the physics of the signal, on the architecture of the tagger, or on the
+tagger operating on jets: a classifier acting on the full event, with
+the surrogate consuming the full generator record, is the same problem
+with a larger input set.
+
+Emerging jets~\cite{Schwaller:2015gea} serve as the example throughout
+this paper. They are a signature of strongly interacting dark
+sectors~\cite{Strassler:2006im,Han:2007ae,Bai:2013xga,Albouy:2022cin}
+in which long-lived dark particles produced inside a jet decay back to
+Standard Model particles at displaced vertices, and they are a
+demanding test case for two reasons. These dark-QCD scenarios are
+governed by many free parameters, including the strength of
+interactions between dark particles, their masses, and their lifetimes,
+and small changes in these parameters produce non-trivial shifts in the
+final-state topology, so the sensitivity of an analysis cannot be
+assumed to generalize across the parameter space without explicit
+reinterpretation. The complex signal topology, with an arbitrary number
+of dark particles per jet each decaying at lifetime-dependent
+displacements, also makes it impractical to parameterize the selection
+efficiency as a simple function of model parameters. Furthermore, the
+current ATLAS search~\cite{ATLAS:EJ} relies on a transformer-based jet
+tagger operating on low-level detector inputs whose response to new
+signals cannot be evaluated without full detector simulation and
+reconstruction. A surrogate that works here should work for simpler
+signatures.
+
+This paper builds and validates such a surrogate end to end in a
+fully controlled setting. Signal and background events are generated
+with \textsc{Pythia}~8 and passed through a \textsc{Delphes} simulation
+of an ATLAS-like detector with realistic track impact-parameter
+resolution. A transformer tagger trained on the reconstructed tracks
+inside large-radius jets plays the role of the analysis, and a signal
+region is defined by requiring two tagged jets. A second transformer,
+operating only on the generator-level particles inside a jet, is then
+trained to estimate the probability that the jet would be tagged by
+the detector-level classifier. Because every element of the chain is
+available, the surrogate can be confronted with the full
+detector-level answer not only on the model it was trained on but on
+dark-pion masses, lifetimes and couplings it has never seen, which is
+precisely the situation in which a surrogate would be used.
+
+Our goals are as follows.
+(i) Establish that truth-level particle information is sufficient to
+learn a meaningful approximation of a low-level track-based tagger.
+(ii) Quantify the accuracy with which the surrogate reproduces the
+event-level signal-region efficiency, both on held-out samples of the
+training model and on models with different dark-sector parameters.
+(iii) Identify which truth-level quantities carry the information the
+surrogate uses, and where the approximation degrades.
+(iv) Provide a concrete template for the material an analysis team
+would publish to make a machine-learned search reinterpretable.
+
+% =====================================================================
+\section{Simulation and event reconstruction}
+\label{sec:simulation}
+
+\subsection{Signal and background samples}
+
+Signal events are generated with \textsc{Pythia}~8.312
+\cite{Bierlich:2022pfr} using the Hidden Valley
+module~\cite{Carloni:2010tw}: $s$-channel production
+$pp \to Z' \to \qD\bar{\qD}$ at $\sqrt{s} = 13.6$~TeV with
+$m_{Z'} = 1.5$~TeV, followed by a dark shower and hadronization with
+$N_{\mathrm{gauge}} = 3$, running dark coupling with
+$\Lambda_{\mathrm{D}} = 10$~GeV, $m_{\qD} = 10$~GeV,
+$\mpid = 5$~GeV, $m_{\rhod} = 20$~GeV, and vector fraction $0.75$,
+following the unflavored benchmark of the Dark Showers Task
+Force~\cite{Albouy:2022cin} and the original emerging-jets
+proposal~\cite{Schwaller:2015gea}. Dark rhos decay promptly to dark
+pion pairs, and dark pions decay to $d\bar d$ with proper lifetime
+scanned over $\ctau(\pid) \in \{0.01, 0.1, 1\}$~mm. This lifetime range
+is deliberately short. At these lifetimes the displaced decay products
+remain inside the pixel volume and the discrimination between dark
+showers and QCD rests on impact parameters of a few tens of
+micrometers and on substructure, which is the regime in which a
+surrogate must reproduce the detector response most faithfully.
+
+To test the generalization of the surrogate, two additional signal
+models are generated in which the entire dark sector is rescaled
+coherently with the dark-pion mass, $\Lambda_{\mathrm{D}}$, $m_{\qD}$,
+$\mpid$, $m_{\rhod}$ and the shower cutoff all scaling with
+$\mpid/5$~GeV, so that the shower remains self-consistent rather than
+changing one mass in isolation. The alternative points have
+$\mpid = 10$~GeV and $\mpid = 2$~GeV, with the same lifetime grid.
+These samples are never used in training.
+
+The background is QCD dijet production with $\hat p_T > 450$~GeV,
+matched to the $Z'$ decay spectrum. The nominal signal model is
+generated with $3.4 \times 10^5$ events per lifetime point, for
+$1.0\times10^6$ signal events in total, and the background with
+$1.0\times10^6$ events. Each alternative-mass model uses
+$5\times10^4$ events per lifetime point. Random seeds are reused across
+the lifetime grid so that the hard process is common to all lifetime
+points, which makes the lifetime comparison a controlled one.
+
+\subsection{Detector simulation}
+\label{sec:detector}
+
+Events are passed through \textsc{Delphes}~3.5.1
+\cite{deFavereau:2013fsa} with the ATLAS detector card. The stock card
+propagates charged particles in the solenoidal field and applies
+$\pT$- and $\eta$-dependent tracking efficiencies and momentum
+resolutions, but leaves the track impact parameters at their generated
+values. Since the impact parameters are the observables that carry the
+lifetime information, a track-smearing module is inserted after track
+reconstruction, carrying the ATLAS transverse and longitudinal
+impact-parameter resolutions as a function of track
+$\pT$~\cite{ATLAS:IDperf}. The resolution ranges from $80~\mu$m for
+tracks below $1$~GeV to $11.5~\mu$m above $30$~GeV in $\dnought$, and
+from $140~\mu$m to $47~\mu$m in $\znought$. Every track therefore
+carries a smeared $\dnought$ and $\znought$ together with their
+uncertainties.
+
+Two simplifications of the tracking model deserve emphasis. The
+tracking efficiency in \textsc{Delphes} does not depend on the
+production radius of the particle, and no fake tracks are simulated.
+Both are appropriate for the lifetime range studied here, in which the
+dark-pion decay products originate well inside the innermost pixel
+layer, and both would need to be revisited for lifetimes beyond a few
+millimeters. Jets are reconstructed from particle-flow objects with
+the anti-$k_t$ algorithm~\cite{Cacciari:2008gp,Cacciari:2011ma} with
+$R = 0.4$, with the jet energy scale correction of the ATLAS card.
+
+\subsection{Jet reconstruction and object association}
+\label{sec:jets}
+
+The same jet recipe is applied on the detector-level and on the
+truth-level side, so that the surrogate sees the same jet the tagger
+sees. Small-radius anti-$k_t$ $R = 0.4$ jets with $\pT > 20$~GeV and
+$|\eta| < 2.5$ are reclustered with the anti-$k_t$ algorithm with
+$R = 1.0$ into large-radius jets, following the reclustered-jet
+approach used in the ATLAS emerging-jets search~\cite{ATLAS:EJ}. At
+detector level the small-radius inputs are the \textsc{Delphes}
+particle-flow jets. At truth level they are built from all stable
+visible generator particles, excluding neutrinos and muons in the
+ATLAS truth-jet convention. Large-radius jets are required to have
+$\pT > 200$~GeV and $|\eta| < 2.0$. Truth large-radius jets are kept
+down to $150$~GeV so that the surrogate can model the turn-on of the
+detector-level threshold, and detector-level and truth jets are matched
+one to one within $\dR < 0.5$.
+
+Objects are associated to a large-radius jet through its constituent
+small-radius jets: a track or generator particle belongs to a
+large-radius jet if it lies within $\dR < 0.4$ of the axis of one of
+the small-radius jets that were reclustered into it. This mirrors
+ghost association in the experiments and is identical on both sides of
+the chain.
+
+\obshead{Detector-level inputs}
+
+The tagger operates on the reconstructed tracks associated to a
+large-radius jet, with $\pT > 0.5$~GeV and $|\eta| < 2.5$, ordered by
+$\pT$ and truncated at 100 tracks per jet. Each track is described by
+its $\pT$, its momentum fraction $\pT/\pT^{\mathrm{jet}}$, its position
+relative to the jet axis ($\Delta\eta$, $\Delta\phi$, $\dR$), its
+transverse impact parameter signed with respect to the jet axis, its
+longitudinal impact parameter, the resolutions $\sigma(\dnought)$ and
+$\sigma(\znought)$, its charge, and a categorical flag distinguishing
+hadrons, electrons and muons. The jet-signed impact parameter is
+positive when the point of closest approach lies on the same side of
+the primary vertex as the jet, so that the decay products of a
+particle traveling along the jet direction populate the positive tail,
+while resolution effects are symmetric.
+
+\obshead{Truth-level inputs}
+
+The surrogate operates on the generator particles associated to a
+truth large-radius jet: every stable particle and every decayed
+physical particle, that is, Standard Model hadrons and taus as well as
+dark hadrons, with $\pT > 0.5$~GeV, ordered by $\pT$ and truncated at
+150 particles per jet. The neutrinos are excluded. Each particle is
+described by its kinematics relative to the jet, its charge and
+status, its production vertex ($L_{xy}$ and $z$), and, for particles
+that decay, the decay vertex, the flight length and the direction of
+the displacement relative to the momentum, the number of decay
+products, and the kinematics of the first two decay products. The PDG
+identifiers of the particle and of its first two decay products are
+passed through learned embeddings over the vocabulary of identifiers
+seen in training, with unseen identifiers mapped to a shared token.
+Nothing in this representation refers to a detector. In particular, the
+dark pions themselves enter as particles with a displaced decay vertex
+and two quark daughters, which is exactly the information a generator
+provides for any long-lived state.
+
+Displacements are passed through a symmetric logarithm,
+$\mathrm{sign}(x)\ln(1 + |x|/10~\mu\mathrm{m})$, so that the
+micrometer-scale impact parameters of prompt tracks and the
+millimeter-scale decay lengths of dark pions occupy comparable dynamic
+range, and all continuous inputs are standardized with the training-set
+mean and standard deviation.
+
+% =====================================================================
+\section{The detector-level emerging-jet tagger}
+\label{sec:tagger}
+
+\subsection{Architecture and training}
+
+The tagger is a set transformer acting on the tracks of a jet. Each
+track is embedded by a two-layer perceptron into a 128-dimensional
+representation, a learned class token is prepended, and the set passes
+through four pre-normalization transformer encoder layers with eight
+attention heads, with the padding slots masked from attention. The
+class-token output is normalized and passed through a two-layer head to
+a single logit. The model has $0.57$ million parameters. It is trained
+with the binary cross-entropy loss using AdamW, a linear warm-up
+followed by a cosine learning-rate schedule with peak learning rate
+$3\times10^{-4}$, batches of 512 jets, and early stopping on the
+validation loss. The three signal lifetimes are pooled, so that a
+single tagger serves the full lifetime grid, as in the ATLAS search.
+
+Samples are split by generator seed rather than by event, so that no
+event contributes to more than one of the training, validation and test
+sets. Of the nominal signal, $24$ seeds per lifetime point are used for
+training, $3$ for validation and $7$ for testing, and of the
+background $60$, $10$ and $30$ seeds. The training set contains
+$2.2\times10^6$ large-radius jets, of which $9.8\times10^5$ are signal.
+
+\subsection{Working point and signal region}
+\label{sec:sr}
+
+The working point is the logit threshold at which the background jet
+efficiency on the test seeds is $10^{-3}$, that is, a background
+rejection of $10^{3}$. The test background sample of $6.0\times10^5$
+jets leaves $600$ jets above threshold, so the working point is a
+measurement and not a statistical bound. The signal region requires at
+least two large-radius jets with $\pT > 200$~GeV above the working
+point. Its efficiency $\effSR$ is the quantity the surrogate is asked
+to predict.
+
+Training stops after $26$ epochs, with the best validation loss at
+epoch $20$ and a validation accuracy of $0.934$. On the test seeds the
+area under the ROC curve is $0.975$, and the ROC curves per lifetime
+are shown in Fig.~\ref{fig:roc}. The threshold at $10^{3}$ rejection
+gives the signal jet efficiencies of Table~\ref{tab:wp}.
+
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.6\textwidth]{tagger_roc.pdf}
+  \caption{Background rejection as a function of signal jet efficiency
+  for the track transformer tagger, evaluated on the test seeds, for
+  each dark-pion lifetime. The dashed line marks the working point at a
+  rejection of $10^{3}$.}
+  \label{fig:roc}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{lccc}
+    \toprule
+    $\ctau(\pid)$ & $0.01$~mm & $0.1$~mm & $1$~mm \\
+    \midrule
+    signal jet efficiency at $1/10^{3}$ & $0.295 \pm 0.002$ & $0.802 \pm 0.001$ & $0.921 \pm 0.001$ \\
+    signal-region efficiency $\effSR$ & $0.066 \pm 0.001$ & $0.418 \pm 0.002$ & $0.538 \pm 0.002$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Tagger performance at the working point on the nominal
+  signal model, test seeds.}
+  \label{tab:wp}
+\end{table}
+
+The shortest lifetime is the difficult one. At $\ctau = 0.01$~mm the
+typical dark-pion flight length is comparable to the impact-parameter
+resolution, and the tagger relies on the substructure of the dark
+shower rather than on displacement. The tagger does not need to be
+optimal for the purpose of this study. It needs to be fixed, so that
+the surrogate has a well-defined target, and it needs to be
+representative of the class of low-level machine-learned selections
+whose reinterpretation is the problem.
+
+% =====================================================================
+\section{The truth-level surrogate}
+\label{sec:surrogate}
+
+\subsection{Target and training}
+
+The surrogate is a second set transformer with the same architecture
+as the tagger, acting on the generator particles of a truth
+large-radius jet, with the embedded PDG identifiers concatenated to the
+continuous inputs. Its target for a truth jet is the binary outcome of
+the full detector-level chain: whether a matched reconstructed jet
+exists, passes the kinematic selection and lies above the tagger
+working point. Truth jets without a reconstructed partner are
+negatives. The surrogate is thus trained to predict the analysis
+decision, not to imitate the tagger score, and its output is a
+per-jet probability
+\begin{equation}
+  p_j = P(\text{truth jet } j \text{ is tagged at detector level}),
+\end{equation}
+obtained from the binary cross-entropy loss, which is a proper scoring
+rule and therefore yields calibrated probabilities when the model
+capacity and statistics permit.
+
+The surrogate is trained on the training and validation seeds of the
+nominal signal model and of the background, with labels obtained by
+applying the frozen tagger to every reconstructed jet. Background jets
+are subsampled to $4000$ per file, since they contribute almost only
+negatives at the $10^{-3}$ working point. The alternative-mass models
+and the test seeds of the nominal model are held out entirely.
+
+\subsection{From jets to events}
+
+The signal-region efficiency of an event is predicted from the per-jet
+probabilities of its truth jets. Treating the jets as independent, the
+probability that at least two of $n$ truth jets are tagged is the
+Poisson-binomial tail
+\begin{equation}
+  P_{\geq 2} = 1 - \prod_{j=1}^{n}(1 - p_j)
+             - \sum_{k=1}^{n} p_k \prod_{j \neq k}(1 - p_j),
+  \label{eq:pb}
+\end{equation}
+and the predicted efficiency is the mean of $P_{\geq 2}$ over events.
+This uses the full probabilistic output of the surrogate. The
+alternative of thresholding each $p_j$ at $0.5$ and counting tagged
+jets discards the information in the intermediate probabilities and
+is reported alongside for comparison. The two agree only when the
+surrogate is confident on every jet, and their difference is a
+diagnostic of where the truth record fails to determine the detector
+response.
+
+% =====================================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Closure on the training model}
+
+\stub{Predicted versus actual $\effSR$ for the nominal model on the
+test seeds, per lifetime (Fig.~\ref{fig:sr}, left panel, and
+Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
+(Fig.~\ref{fig:jetpt}). Calibration curve (Fig.~\ref{fig:calib}).}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_m5.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_m10.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_m2.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{Signal-region efficiency as a function of the dark-pion lifetime for (a) the nominal model on the test seeds and (b, c) the two dark-pion masses not used in training, $\mpid = 10$ and $2$~GeV. Filled circles are the detector-level efficiency from the reconstructed tracks and the tagger, open squares the surrogate prediction from the truth record alone, Eq.~(\ref{eq:pb}). The lower pads show the ratio of predicted to detector-level efficiency.}
+  \label{fig:sr}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{llcccc}
+    \toprule
+    $\mpid$ & $\ctau(\pid)$ & $\effSR$ actual & $\effSR$ predicted & pred./actual & jet AUC \\
+    \midrule
+    $5$~GeV   & $0.01$~mm & $0.066 \pm 0.001$ & $0.057 \pm 0.000$ & $0.87$ & $0.602$ \\
+              & $0.1$~mm & $0.418 \pm 0.002$ & $0.384 \pm 0.001$ & $0.92$ & $0.697$ \\
+              & $1$~mm & $0.538 \pm 0.002$ & $0.510 \pm 0.002$ & $0.95$ & $0.797$ \\
+    $10$~GeV  & $0.01$~mm & $0.039 \pm 0.001$ & $0.044 \pm 0.000$ & $1.12$ & $0.587$ \\
+              & $0.1$~mm & $0.424 \pm 0.002$ & $0.318 \pm 0.001$ & $0.75$ & $0.686$ \\
+              & $1$~mm & $0.548 \pm 0.002$ & $0.490 \pm 0.002$ & $0.90$ & $0.798$ \\
+    $2$~GeV   & $0.01$~mm & $0.058 \pm 0.001$ & $0.124 \pm 0.001$ & $2.12$ & $0.581$ \\
+              & $0.1$~mm & $0.333 \pm 0.002$ & $0.415 \pm 0.002$ & $1.25$ & $0.649$ \\
+              & $1$~mm & $0.496 \pm 0.002$ & $0.510 \pm 0.002$ & $1.03$ & $0.746$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Signal-region efficiency from the full detector-level chain
+  and from the surrogate, with their ratio, and the area under the
+  per-jet ROC curve of the surrogate against the detector-level
+  decision. The $\mpid = 5$~GeV rows use test seeds of the training
+  model. The other masses were never seen in training.}
+  \label{tab:closure}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{jet_eff_vs_pt_m5.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{jet_eff_vs_pt_m10.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{jet_eff_vs_pt_m2.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{Per-jet tagging probability as a function of the truth large-radius jet $\pT$ for (a) $\mpid = 5$~GeV (test seeds), (b) $10$~GeV and (c) $2$~GeV, per lifetime. Markers are the detector-level pass fraction, dashed lines the mean surrogate probability in the same bin. The turn-on below $200$~GeV reflects the detector-level jet $\pT$ threshold.}
+  \label{fig:jetpt}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{calibration_m5.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{calibration_m10.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{calibration_m2.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{Calibration of the surrogate for (a) $\mpid = 5$~GeV (test seeds), (b) $10$~GeV and (c) $2$~GeV: the detector-level pass fraction in bins of the predicted probability, with the marker area proportional to the fraction of jets in the bin. A calibrated surrogate lies on the diagonal. No calibration is applied to the surrogate output.}
+  \label{fig:calib}
+\end{figure}
+
+\subsection{Generalization to unseen dark-pion masses}
+
+\stub{Discussion of the center and right panels of Fig.~\ref{fig:sr}.
+The decision-gate criterion of a $30\%$ reproduction of the acceptance
+across held-out hypotheses. Which direction the surrogate errs, and
+whether the error is in the per-jet probabilities (calibration) or in
+the independence assumption of Eq.~(\ref{eq:pb}) (compare the
+labels-only Poisson-binomial reference).}
+
+The rescaled dark sectors change the multiplicity and the momentum
+sharing of the dark hadrons in a jet, and through the dark-pion boost
+the distribution of decay lengths at fixed proper lifetime. A surrogate
+that had merely memorized the nominal model would fail here in a
+characteristic way, predicting the nominal efficiency regardless of
+the mass. \todo{Describe what is observed.}
+
+\subsection{What the surrogate learns}
+
+\stub{Ablation of the truth-level input groups: kinematics only,
+plus production and decay vertices, plus daughters, plus PDG
+embeddings. Dependence of the closure on the number of labeled
+training jets, which is the scaling behavior a pre-trained backbone
+would be measured against.}
+
+% =====================================================================
+\section{Conclusions}
+\label{sec:conclusions}
+
+We have built a fully controlled testbed for surrogate-based
+reinterpretation of a machine-learned search, from event generation
+through an ATLAS-like fast simulation with realistic impact-parameter
+resolution, a transformer emerging-jet tagger on reconstructed tracks,
+and a two-jet signal region at a working point of $10^{3}$ background
+rejection. A second transformer operating only on the generator
+particles inside a truth jet, with no reference to any detector
+quantity, is trained to predict the tagger decision, and its per-jet
+probabilities are combined into event-level signal-region efficiencies
+without further approximation.
+
+\todo{Headline numbers: closure on the training model, generalization
+to $\mpid = 10$ and $2$~GeV, calibration.}
+
+The results demonstrate that truth-level particle information is
+sufficient to learn a meaningful approximation of the response of a
+low-level detector tagger, including at proper lifetimes for which the
+displacement is comparable to the impact-parameter resolution and the
+tagger relies on substructure. The surrogate is inexpensive in every
+relevant sense. It is a single network of under a million parameters,
+it consumes the generator record that any theorist can produce, and
+it returns a per-event acceptance in milliseconds, so that the
+sensitivity of the search to a new model can be estimated without
+detector simulation, reconstruction, or access to the
+collaboration-internal analysis software.
+
+The controlled setting also makes the limitations explicit. The
+surrogate is only as good as the labeled samples it is trained on, and
+its accuracy degrades in the directions of parameter space that the
+training model does not populate, so the training sample must span the
+model variations the reinterpretation is meant to cover. Designing,
+training and validating a bespoke surrogate for every analysis would
+impose a significant additional burden on analysis teams. A shared
+model pre-trained on a broad corpus of simulated events, learning
+generic mappings from truth-particle inputs to detector-level outcomes
+once and then specialized to individual analyses through lightweight
+task-specific heads, is the natural next step, and the scaling of
+surrogate accuracy with the number of labeled jets measured here
+provides the baseline against which such an approach should be judged.
+
+Although emerging jets serve as the example here, nothing in the
+construction is specific to dark showers. The surrogate learns the
+detector-level response of a machine-learned tagger from the generator
+record of the objects it acts on, and the same recipe applies to any
+analysis whose selection is a custom jet tagging algorithm with
+constituent-level inputs, whether the discriminating physics is
+displacement, substructure, flavor or something else. The extension
+from jets to event-level classifiers is direct: the surrogate then
+consumes the full generator record of the event and predicts the
+event-level decision, and the Poisson-binomial combination is replaced
+by the network output itself. The template established here, a
+detector-level tagger, a frozen working point, and a truth-level
+surrogate validated on models withheld from training, is the material
+an analysis team would need to publish for its search to be
+reinterpreted, and we encourage its adoption.
+
+\acknowledgments
+
+\todo{acknowledgements}
+
+% =====================================================================
+\begin{thebibliography}{99}
+
+\bibitem{Butterworth:2016sqg}
+J.~M.~Butterworth, D.~Grellscheid, M.~Kr\"amer, B.~Sarrazin and D.~Yallup,
+\emph{Constraining new physics with collider measurements of Standard
+Model signatures},
+JHEP \textbf{03} (2017) 078, [\texttt{arXiv:1606.05296}].
+
+\bibitem{Buckley:2010ar}
+A.~Buckley et al.,
+\emph{Rivet user manual},
+Comput.\ Phys.\ Commun.\ \textbf{184} (2013) 2803,
+[\texttt{arXiv:1003.0694}].
+
+\bibitem{deFavereau:2013fsa}
+DELPHES 3 Collaboration, J.~de~Favereau et al.,
+\emph{DELPHES 3, A modular framework for fast simulation of a generic
+collider experiment},
+JHEP \textbf{02} (2014) 057, [\texttt{arXiv:1307.6346}].
+
+\bibitem{Corpe:2025rtz}
+L.~D.~Corpe, A.~Haddad and M.~Goodsell,
+\emph{Recasting the ATLAS search for displaced hadronic jets in the
+ATLAS calorimeter with additional jets or leptons using surrogate
+models},
+Eur.\ Phys.\ J.\ C \textbf{85} (2025) 1276, [\texttt{arXiv:2502.10231}].
+
+\bibitem{ATLAS:CalRatio}
+ATLAS Collaboration,
+\emph{Search for neutral long-lived particles that decay into displaced
+jets in the ATLAS calorimeter in association with leptons or jets using
+$pp$ collisions at $\sqrt{s} = 13$~TeV},
+JHEP \textbf{11} (2024) 036, [\texttt{arXiv:2407.09183}].
+
+\bibitem{Schwaller:2015gea}
+P.~Schwaller, D.~Stolarski and A.~Weiler,
+\emph{Emerging Jets},
+JHEP \textbf{05} (2015) 059, [\texttt{arXiv:1502.05409}].
+
+\bibitem{Strassler:2006im}
+M.~J.~Strassler and K.~M.~Zurek,
+\emph{Echoes of a hidden valley at hadron colliders},
+Phys.\ Lett.\ B \textbf{651} (2007) 374, [\texttt{hep-ph/0604261}].
+
+\bibitem{Han:2007ae}
+T.~Han, Z.~Si, K.~M.~Zurek and M.~J.~Strassler,
+\emph{Phenomenology of hidden valleys at hadron colliders},
+JHEP \textbf{07} (2008) 008, [\texttt{arXiv:0712.2041}].
+
+\bibitem{Bai:2013xga}
+Y.~Bai and P.~Schwaller,
+\emph{Scale of dark QCD},
+Phys.\ Rev.\ D \textbf{89} (2014) 063522, [\texttt{arXiv:1306.4676}].
+
+\bibitem{Albouy:2022cin}
+G.~Albouy et al.,
+\emph{Theory, phenomenology, and experimental avenues for dark showers:
+a Snowmass 2021 report},
+Eur.\ Phys.\ J.\ C \textbf{82} (2022) 1132, [\texttt{arXiv:2203.09503}].
+
+\bibitem{ATLAS:EJ}
+ATLAS Collaboration,
+\emph{Search for emerging jets in $pp$ collisions at $\sqrt{s} = 13.6$~TeV
+with the ATLAS experiment},
+Rept.\ Prog.\ Phys.\ \textbf{88} (2025) 097801,
+[\texttt{arXiv:2505.02429}].
+
+\bibitem{Bierlich:2022pfr}
+C.~Bierlich et al.,
+\emph{A comprehensive guide to the physics and usage of PYTHIA 8.3},
+SciPost Phys.\ Codeb.\ \textbf{2022} (2022) 8,
+[\texttt{arXiv:2203.11601}].
+
+\bibitem{Carloni:2010tw}
+L.~Carloni, J.~Rathsman and T.~Sj\"ostrand,
+\emph{Discerning Secluded Sector gauge structures},
+JHEP \textbf{04} (2011) 091, [\texttt{arXiv:1102.3795}].
+
+\bibitem{ATLAS:IDperf}
+ATLAS Collaboration,
+\emph{Track Reconstruction Performance of the ATLAS Inner Detector at
+$\sqrt{s} = 13$~TeV},
+ATL-PHYS-PUB-2015-018 (2015).
+\todo{cross-check the origin of the Delphes ATLAS track-resolution
+tables, cited there as arXiv:1405.6569}
+
+\bibitem{Cacciari:2008gp}
+M.~Cacciari, G.~P.~Salam and G.~Soyez,
+\emph{The anti-$k_t$ jet clustering algorithm},
+JHEP \textbf{04} (2008) 063, [\texttt{arXiv:0802.1189}].
+
+\bibitem{Cacciari:2011ma}
+M.~Cacciari, G.~P.~Salam and G.~Soyez,
+\emph{FastJet User Manual},
+Eur.\ Phys.\ J.\ C \textbf{72} (2012) 1896, [\texttt{arXiv:1111.6097}].
+
+\end{thebibliography}
+
+% =====================================================================
+\appendix
+
+\section{Pythia Hidden Valley settings}
+\label{app:settings}
+
+The signal configuration used for all results in this paper is listed
+below. The dark-pion lifetime (\texttt{4900111:tau0}, in mm), the
+dark-sector mass scale and the random seed are set per grid point at
+run time. The background samples use the same beam settings with
+\texttt{HardQCD:all} and \texttt{PhaseSpace:pTHatMin = 450}.
+
+{\small
+\begin{verbatim}
+Beams:idA = 2212
+Beams:idB = 2212
+Beams:eCM = 13600.
+
+! ---- hard process: s-channel Zv ----
+HiddenValley:ffbar2Zv = on
+4900023:m0 = 1500.
+4900023:mWidth = 15.
+4900023:onMode = off
+4900023:onIfAny = 4900101
+
+! ---- dark sector: SU(3), one light flavor, running coupling ----
+HiddenValley:Ngauge = 3
+HiddenValley:alphaOrder = 1
+HiddenValley:Lambda = 10.
+HiddenValley:FSR = on
+HiddenValley:fragment = on
+HiddenValley:pTminFSR = 11.
+HiddenValley:probVector = 0.75
+
+! ---- dark sector masses ----
+4900101:m0 = 10.     ! dark quark qv
+4900111:m0 = 5.      ! dark pion pi_d
+4900113:m0 = 20.     ! dark rho rho_d (rho -> pi pi open)
+
+! ---- decays back to SM ----
+4900113:oneChannel = 1 1.0 0 4900111 4900111
+4900111:oneChannel = 1 1.0 91 1 -1
+4900111:mayDecay = on
+\end{verbatim}
+}
+
+\section{Detector-simulation settings}
+\label{app:delphes}
+
+The \textsc{Delphes} configuration is the ATLAS card distributed with
+\textsc{Delphes}~3.5.1 with the following modifications. A
+\texttt{TrackSmearing} module is inserted after the track merger and
+before the calorimeters, with the $\dnought$, $\znought$, $\phi$ and
+$\cot\theta$ resolution tables distributed with \textsc{Delphes} for the
+ATLAS detector (\texttt{trackResolutionATLAS}), so that the calorimeter and tau-tagging modules consume the smeared
+tracks. Both the particle-flow and the truth jet finders use
+$R = 0.4$. The output retains the complete generator record, the
+smeared tracks, the particle-flow jets, the truth jets and the missing
+transverse momentum.
+
+\end{document}

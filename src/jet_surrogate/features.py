@@ -1,223 +1,214 @@
-"""Per-particle feature extraction from HEPMC GenParticle objects."""
+"""Per-object feature tables and padded (jet, slot) arrays.
 
-import math
-from typing import Dict
+Reco side  : Delphes tracks -> TRACK_FLOATS (+ TRACK_CATS)  -> tagger input
+Truth side : generator particles (stable, or decayed physical particles:
+             SM hadrons, taus, dark hadrons) -> PART_FLOATS
+             (+ PART_CATS, embedded PDG ids) -> surrogate input
 
+Raw values are stored on disk; ``model_space()`` applies the fixed
+transforms (logs, symlogs) that the networks consume, so training and
+inference share one definition.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+import awkward as ak
 import numpy as np
 
-try:
-    from particle import Particle as _PDGParticle
-    _HAS_PARTICLE_LIB = True
-except ImportError:
-    _HAS_PARTICLE_LIB = False
+from .jets import delta_phi, delta_r
 
-INT_VARS = ["pdgId", "charge", "child0PdgId", "child1PdgId"]
+MAX_TRK = 100
+MAX_PART = 150
+TRK_PT_MIN = 0.5
+TRK_ETA_MAX = 2.5
+PART_PT_MIN = 0.5
 
-FLOAT_VARS = [
-    "pt", "mass", "energy", "eta", "phi",
-    "deta", "dphi", "dr",
-    "decayVertexX", "decayVertexY", "decayVertexZ",
-    "Lxy", "decayVertexDPhi", "decayVertexDEta",
-    "prodVertexX", "prodVertexY", "prodVertexZ", "prodLxy",
-    "child0Pt", "child0Eta", "child0Phi", "child0E", "child0M",
-    "child1Pt", "child1Eta", "child1Phi", "child1E", "child1M",
+# ---------------------------------------------------------------- tracks
+TRACK_FLOATS = ["pt", "ptrel", "deta", "dphi", "dr", "d0", "z0", "sigma_d0", "sigma_z0", "charge"]
+TRACK_CATS = ["type"]           # 0 hadron, 1 electron, 2 muon
+TRACK_CAT_SIZES = [3]
+
+# ---------------------------------------------------------------- truth particles
+PART_FLOATS = [
+    "pt", "ptrel", "energy", "mass", "deta", "dphi", "dr", "charge", "status",
+    "prod_lxy", "prod_z", "decay_lxy", "decay_z", "decay_len",
+    "decay_dphi", "decay_deta", "has_decay", "n_children",
+    "c0_pt", "c0_deta", "c0_dphi", "c0_mass",
+    "c1_pt", "c1_deta", "c1_dphi", "c1_mass",
 ]
+PART_CATS = ["pdgid", "c0_pdgid", "c1_pdgid"]   # embedded via a vocabulary
 
-ALL_VARS = INT_VARS + FLOAT_VARS
-N_FEATURES = len(ALL_VARS)  # 32
-
-JETS_DTYPE = np.dtype([
-    ("pt",     "<f4"),
-    ("eta",    "<f4"),
-    ("energy", "<f4"),
-    ("mass",   "<f4"),
-    ("phi",    "<f4"),
-])
-
-PARTICLES_DTYPE = np.dtype([
-    ("pdgId",           "<i4"),
-    ("charge",          "<i4"),
-    ("child0PdgId",     "<i4"),
-    ("child1PdgId",     "<i4"),
-    ("pt",              "<f4"),
-    ("mass",            "<f4"),
-    ("energy",          "<f4"),
-    ("eta",             "<f2"),
-    ("phi",             "<f2"),
-    ("deta",            "<f2"),
-    ("dphi",            "<f2"),
-    ("dr",              "<f2"),
-    ("decayVertexX",    "<f2"),
-    ("decayVertexY",    "<f2"),
-    ("decayVertexZ",    "<f2"),
-    ("Lxy",             "<f2"),
-    ("decayVertexDPhi", "<f2"),
-    ("decayVertexDEta", "<f2"),
-    ("prodVertexX",     "<f2"),
-    ("prodVertexY",     "<f2"),
-    ("prodVertexZ",     "<f2"),
-    ("prodLxy",         "<f2"),
-    ("child0Pt",        "<f4"),
-    ("child0Eta",       "<f2"),
-    ("child0Phi",       "<f2"),
-    ("child0E",         "<f4"),
-    ("child0M",         "<f4"),
-    ("child1Pt",        "<f4"),
-    ("child1Eta",       "<f2"),
-    ("child1Phi",       "<f2"),
-    ("child1E",         "<f4"),
-    ("child1M",         "<f4"),
-    ("valid",           "?"),
-])
+# transform applied before normalization: name -> (kind, scale)
+_LOG = ("log", 1.0)
+_SYMLOG_UM = ("symlog", 0.01)     # mm quantities: sign(x) log1p(|x| / 10 um)
+_SYMLOG_MM = ("symlog", 1.0)
+TRANSFORMS = {
+    "pt": _LOG, "ptrel": _LOG, "energy": _LOG, "c0_pt": ("log0", 1.0), "c1_pt": ("log0", 1.0),
+    "d0": _SYMLOG_UM, "z0": _SYMLOG_MM, "sigma_d0": _LOG, "sigma_z0": _LOG,
+    "prod_lxy": _SYMLOG_UM, "prod_z": _SYMLOG_MM, "decay_lxy": _SYMLOG_UM,
+    "decay_z": _SYMLOG_MM, "decay_len": _SYMLOG_UM,
+}
 
 
-def _charge(pdgid: int) -> int:
-    if _HAS_PARTICLE_LIB:
-        try:
-            return int(round(float(_PDGParticle.from_pdgid(pdgid).charge)))
-        except Exception:
-            pass
-    return 0
+def model_space(name: str, x: np.ndarray) -> np.ndarray:
+    kind, scale = TRANSFORMS.get(name, ("lin", 1.0))
+    x = np.asarray(x, dtype=np.float32)
+    if kind == "log":
+        return np.log(np.maximum(x, 1e-6))
+    if kind == "log0":                      # 0 stays 0 (absent child)
+        return np.where(x > 0, np.log(np.maximum(x, 1e-6)), 0.0).astype(np.float32)
+    if kind == "symlog":
+        return (np.sign(x) * np.log1p(np.abs(x) / scale)).astype(np.float32)
+    return x
 
 
-def _pt(px: float, py: float) -> float:
-    return math.sqrt(px * px + py * py)
+def d0_resolution_mm(pt):
+    """ATLAS-like d0 resolution table (trackResolutionATLAS.tcl), fallback when
+    Delphes does not fill ErrorD0."""
+    edges = [0.0, 1.0, 2.0, 4.0, 6.0, 10.0, 30.0, np.inf]
+    vals = [0.08, 0.045, 0.028, 0.020, 0.016, 0.014, 0.0115]
+    return np.asarray(vals)[np.clip(np.digitize(pt, edges) - 1, 0, 6)]
 
 
-def _eta(px: float, py: float, pz: float) -> float:
-    pt = _pt(px, py)
-    if pt == 0.0:
-        return -999.0
-    p3 = math.sqrt(pt * pt + pz * pz)
-    ct = max(-1.0 + 1e-12, min(1.0 - 1e-12, pz / p3))
-    return -0.5 * math.log((1.0 - ct) / (1.0 + ct))
+def z0_resolution_mm(pt):
+    edges = [0.0, 1.0, 2.0, 4.0, 6.0, 15.0, 30.0, np.inf]
+    vals = [0.140, 0.096, 0.075, 0.058, 0.055, 0.050, 0.047]
+    return np.asarray(vals)[np.clip(np.digitize(pt, edges) - 1, 0, 6)]
 
 
-def _phi(px: float, py: float) -> float:
-    return math.atan2(py, px)
+@lru_cache(maxsize=None)
+def pdg_charge(pid: int) -> float:
+    """Electric charge from Pythia's particle table. Delphes writes Charge = -999
+    for ids it does not know (every dark-sector state), so truth-particle
+    charges are always derived from the PDG id, on the Delphes and the HepMC
+    path alike."""
+    return float(_pythia_particle_data().charge(int(pid)))
 
 
-def _mass(px: float, py: float, pz: float, e: float) -> float:
-    return math.sqrt(max(0.0, e * e - px * px - py * py - pz * pz))
+@lru_cache(maxsize=1)
+def _pythia_particle_data():
+    import pythia8
+    return pythia8.Pythia("", False).particleData
 
 
-def _delta_phi(a: float, b: float) -> float:
-    d = a - b
-    while d > math.pi:
-        d -= 2.0 * math.pi
-    while d < -math.pi:
-        d += 2.0 * math.pi
-    return d
+def charges_from_pid(pid: np.ndarray) -> np.ndarray:
+    ids, inv = np.unique(pid, return_inverse=True)
+    return np.array([pdg_charge(int(i)) for i in ids], dtype=np.float32)[inv]
 
 
-def _kinematics_from_child(child) -> tuple:
-    """Return (pt, eta, phi, e, m) for a GenParticle child."""
-    cm = child.momentum
-    px, py, pz, e = cm.px, cm.py, cm.pz, cm.e
-    return (
-        _pt(px, py),
-        _eta(px, py, pz),
-        _phi(px, py),
-        e,
-        _mass(px, py, pz, e),
-    )
+def padded_dtype(floats, cats):
+    return np.dtype([(n, "f4") for n in floats] + [(n, "i4") for n in cats] + [("valid", "?")])
 
 
-def extract_features(particle, jet_eta: float = 0.0, jet_phi: float = 0.0) -> Dict:
-    """
-    Extract the full INT_VARS + FLOAT_VARS feature set from a HEPMC GenParticle.
+def pad_groups(jet_id: np.ndarray, n_jets: int, sort_key: np.ndarray, columns: dict,
+               max_n: int, floats, cats) -> np.ndarray:
+    """Scatter flat per-object columns into a (n_jets, max_n) structured array,
+    ordering objects within a jet by descending ``sort_key`` and truncating."""
+    out = np.zeros((n_jets, max_n), dtype=padded_dtype(floats, cats))
+    sel = jet_id >= 0
+    jid, key = jet_id[sel], sort_key[sel]
+    order = np.lexsort((-key, jid))
+    jid = jid[order]
+    starts = np.searchsorted(jid, jid, side="left")
+    pos = np.arange(len(jid)) - starts
+    keep = pos < max_n
+    rows, cols = jid[keep], pos[keep]
+    src = np.flatnonzero(sel)[order][keep]
+    for name in list(floats) + list(cats):
+        out[name][rows, cols] = columns[name][src]
+    out["valid"][rows, cols] = True
+    return out
 
-    jet_eta / jet_phi are the parent jet axis, used to compute deta, dphi, dr.
-    Decay/production vertex quantities are zero for particles without those vertices.
-    Only the first two children from the end vertex are captured.
-    """
-    mom = particle.momentum
-    px, py, pz, e = mom.px, mom.py, mom.pz, mom.e
 
-    pt = _pt(px, py)
-    eta = _eta(px, py, pz)
-    phi = _phi(px, py)
-    m = _mass(px, py, pz, e)
-    pdg_id = particle.pid
-
-    deta = eta - jet_eta
-    dphi = _delta_phi(phi, jet_phi)
-    dr = math.sqrt(deta * deta + dphi * dphi)
-
-    # --- production vertex ---
-    pv = particle.production_vertex
-    if pv is not None:
-        pos = pv.position
-        prod_x, prod_y, prod_z = pos.x, pos.y, pos.z
-        prod_lxy = math.sqrt(prod_x * prod_x + prod_y * prod_y)
-    else:
-        prod_x = prod_y = prod_z = prod_lxy = 0.0
-
-    # --- decay (end) vertex ---
-    ev = particle.end_vertex
-    if ev is not None:
-        dpos = ev.position
-        dec_x, dec_y, dec_z = dpos.x, dpos.y, dpos.z
-        lxy = math.sqrt(dec_x * dec_x + dec_y * dec_y)
-
-        # Angular alignment of decay displacement with particle momentum direction
-        dec_phi = _phi(dec_x, dec_y)
-        decay_dphi = _delta_phi(dec_phi, phi)
-        dec_eta = _eta(dec_x, dec_y, dec_z) if lxy > 0.0 else 0.0
-        decay_deta = dec_eta - eta
-
-        children = list(ev.particles_out)
-    else:
-        dec_x = dec_y = dec_z = lxy = decay_dphi = decay_deta = 0.0
-        children = []
-
-    # --- children ---
-    child0_pdg = child1_pdg = 0
-    c0_pt = c0_eta = c0_phi = c0_e = c0_m = 0.0
-    c1_pt = c1_eta = c1_phi = c1_e = c1_m = 0.0
-
-    if len(children) >= 1:
-        child0_pdg = children[0].pid
-        c0_pt, c0_eta, c0_phi, c0_e, c0_m = _kinematics_from_child(children[0])
-    if len(children) >= 2:
-        child1_pdg = children[1].pid
-        c1_pt, c1_eta, c1_phi, c1_e, c1_m = _kinematics_from_child(children[1])
-
-    return {
-        "ints": {
-            "pdgId": pdg_id,
-            "charge": _charge(pdg_id),
-            "child0PdgId": child0_pdg,
-            "child1PdgId": child1_pdg,
-        },
-        "floats": {
-            "pt": pt, "mass": m, "energy": e, "eta": eta, "phi": phi,
-            "deta": deta, "dphi": dphi, "dr": dr,
-            "decayVertexX": dec_x, "decayVertexY": dec_y, "decayVertexZ": dec_z,
-            "Lxy": lxy,
-            "decayVertexDPhi": decay_dphi, "decayVertexDEta": decay_deta,
-            "prodVertexX": prod_x, "prodVertexY": prod_y, "prodVertexZ": prod_z,
-            "prodLxy": prod_lxy,
-            "child0Pt": c0_pt, "child0Eta": c0_eta, "child0Phi": c0_phi,
-            "child0E": c0_e, "child0M": c0_m,
-            "child1Pt": c1_pt, "child1Eta": c1_eta, "child1Phi": c1_phi,
-            "child1E": c1_e, "child1M": c1_m,
-        },
+# ---------------------------------------------------------------- reco tracks
+def track_columns(trk: ak.Array, jet_id: np.ndarray, jets: np.ndarray) -> tuple[dict, np.ndarray]:
+    """Flat per-track feature columns relative to the associated large-R jet.
+    Tracks failing the selection get jet_id -1."""
+    t = ak.flatten(trk)
+    pt = ak.to_numpy(t.pt); eta = ak.to_numpy(t.eta); phi = ak.to_numpy(t.phi)
+    d0 = ak.to_numpy(t.d0); dz = ak.to_numpy(t.dz)
+    ed0 = ak.to_numpy(t.errord0); edz = ak.to_numpy(t.errordz)
+    q = ak.to_numpy(t.charge).astype(np.float32); pid = np.abs(ak.to_numpy(t.pid))
+    ok = (pt > TRK_PT_MIN) & (np.abs(eta) < TRK_ETA_MAX) & (jet_id >= 0)
+    jid = np.where(ok, jet_id, -1)
+    j = jets[np.maximum(jid, 0)]
+    jphi, jeta, jpt = j["phi"], j["eta"], j["pt"]
+    sig_d0 = np.where(ed0 > 0, ed0, d0_resolution_mm(pt))
+    sig_z0 = np.where(edz > 0, edz, z0_resolution_mm(pt))
+    # jet-signed d0: sign of (PCA vector . jet transverse direction);
+    # Delphes' PCA vector is d0 (sin phi, -cos phi), so the sign is d0 sin(phi - phi_jet)
+    sign = np.where(d0 * np.sin(phi - jphi) >= 0, 1.0, -1.0)
+    cols = {
+        "pt": pt, "ptrel": pt / np.maximum(jpt, 1e-6),
+        "deta": eta - jeta, "dphi": delta_phi(phi, jphi), "dr": delta_r(eta, phi, jeta, jphi),
+        "d0": np.abs(d0) * sign, "z0": dz, "sigma_d0": sig_d0, "sigma_z0": sig_z0,
+        "charge": q, "type": np.where(pid == 11, 1, np.where(pid == 13, 2, 0)),
     }
+    return {k: np.asarray(v, dtype=np.float32) if k != "type" else v for k, v in cols.items()}, jid
 
 
-def features_to_row(feat: Dict) -> tuple:
-    """Convert extract_features() output to a tuple compatible with PARTICLES_DTYPE."""
-    i = feat["ints"]
-    f = feat["floats"]
-    return (
-        i["pdgId"], i["charge"], i["child0PdgId"], i["child1PdgId"],
-        f["pt"], f["mass"], f["energy"], f["eta"], f["phi"],
-        f["deta"], f["dphi"], f["dr"],
-        f["decayVertexX"], f["decayVertexY"], f["decayVertexZ"],
-        f["Lxy"], f["decayVertexDPhi"], f["decayVertexDEta"],
-        f["prodVertexX"], f["prodVertexY"], f["prodVertexZ"], f["prodLxy"],
-        f["child0Pt"], f["child0Eta"], f["child0Phi"], f["child0E"], f["child0M"],
-        f["child1Pt"], f["child1Eta"], f["child1Phi"], f["child1E"], f["child1M"],
-        True,
-    )
+# ---------------------------------------------------------------- truth particles
+def particle_columns(part: ak.Array, jet_id: np.ndarray, jets: np.ndarray) -> tuple[dict, np.ndarray]:
+    """Flat per-particle feature columns (status 1 or 2, pT > PART_PT_MIN, not
+    a neutrino) relative to the associated truth large-R jet."""
+    n = ak.to_numpy(ak.num(part.pt))
+    off = np.concatenate([[0], np.cumsum(n)])
+    p = ak.flatten(part)
+    pid = ak.to_numpy(p.pid); apid = np.abs(pid)
+    status = ak.to_numpy(p.status)
+    pt = ak.to_numpy(p.pt); eta = ak.to_numpy(p.eta); phi = ak.to_numpy(p.phi)
+    e = ak.to_numpy(p.e); m = ak.to_numpy(p.mass)
+    q = charges_from_pid(pid)               # never Delphes' Charge (-999 for dark-sector ids)
+    x = ak.to_numpy(p.x); y = ak.to_numpy(p.y); z = ak.to_numpy(p.z)
+    d1 = ak.to_numpy(p.d1); d2 = ak.to_numpy(p.d2)
+    ev = np.repeat(np.arange(len(n)), n)
+    # Delphes stores HepMC-style status for SM particles (1 stable, 2 decayed
+    # hadron/tau) but keeps raw Pythia codes for dark hadrons: 81-89 from
+    # fragmentation, 91-99 from decays. Keep every stable particle and every
+    # decayed physical particle, SM or dark.
+    dark = apid >= 4900000
+    decayed = (status == 2) | (dark & (status >= 81) & (status <= 99))
+    ok = ((status == 1) | decayed) & (pt > PART_PT_MIN) & (jet_id >= 0)
+    ok &= ~np.isin(apid, (12, 14, 16))
+    jid = np.where(ok, jet_id, -1)
+    j = jets[np.maximum(jid, 0)]
+
+    # children: D1..D2 are event-local indices into the Particle list
+    has = decayed & (d1 >= 0)
+    g1 = np.where(has, off[ev] + d1, 0)
+    nchild = np.where(has, np.where(d2 >= d1, d2 - d1 + 1, 1), 0)
+    has2 = has & (nchild >= 2)
+    g2 = np.where(has2, g1 + 1, 0)
+    # decay vertex = production vertex of the first child
+    dx = np.where(has, x[g1], 0.0); dy = np.where(has, y[g1], 0.0); dz = np.where(has, z[g1], 0.0)
+    fx, fy, fz = dx - x, dy - y, dz - z
+    flight_t = np.hypot(fx, fy)
+    dec_phi = np.where(has & (flight_t > 0), delta_phi(np.arctan2(fy, fx), phi), 0.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dec_eta = np.where(has & (flight_t > 0), np.arcsinh(fz / np.maximum(flight_t, 1e-9)) - eta, 0.0)
+
+    def child(g, ok_c):
+        return {
+            "pt": np.where(ok_c, pt[g], 0.0),
+            "deta": np.where(ok_c, eta[g] - eta, 0.0),
+            "dphi": np.where(ok_c, delta_phi(phi[g], phi), 0.0),
+            "mass": np.where(ok_c, m[g], 0.0),
+            "pdgid": np.where(ok_c, pid[g], 0),
+        }
+    c0, c1 = child(g1, has), child(g2, has2)
+    cols = {
+        "pt": pt, "ptrel": pt / np.maximum(j["pt"], 1e-6), "energy": e, "mass": m,
+        "deta": eta - j["eta"], "dphi": delta_phi(phi, j["phi"]), "dr": delta_r(eta, phi, j["eta"], j["phi"]),
+        "charge": q, "status": status.astype(np.float32),
+        "prod_lxy": np.hypot(x, y), "prod_z": z,
+        "decay_lxy": np.hypot(dx, dy), "decay_z": dz, "decay_len": np.sqrt(fx**2 + fy**2 + fz**2),
+        "decay_dphi": dec_phi, "decay_deta": dec_eta, "has_decay": has.astype(np.float32),
+        "n_children": nchild.astype(np.float32),
+        "c0_pt": c0["pt"], "c0_deta": c0["deta"], "c0_dphi": c0["dphi"], "c0_mass": c0["mass"],
+        "c1_pt": c1["pt"], "c1_deta": c1["deta"], "c1_dphi": c1["dphi"], "c1_mass": c1["mass"],
+        "pdgid": pid, "c0_pdgid": c0["pdgid"], "c1_pdgid": c1["pdgid"],
+    }
+    return {k: (np.asarray(v, dtype=np.float32) if k not in PART_CATS else np.asarray(v, dtype=np.int32))
+            for k, v in cols.items()}, jid

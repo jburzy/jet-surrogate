@@ -1,3 +1,31 @@
-*__pycache__*
-*.hepmc
+# pixi environments
+.pixi/
+# bulk data (symlink to ourdisk), scores, run directories, comet archives
+data
+data/
+logs/
+.cometml-runs/
+# trained models (the released surrogate is versioned)
+models/
+!models/release/
+# results, figures and rendered documents
+results/
+results_*/
+*.png
+*.pdf
 *.h5
+*.hepmc
+*.root
+# python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+# latex build
+paper/*.log
+paper/*.aux
+paper/*.xdv
+paper/*.out
+# generated job lists
+slurm/manifest_*.txt
+slurm/skim_list.txt
+.DS_Store

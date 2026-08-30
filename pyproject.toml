@@ -4,20 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jet-surrogate"
-version = "0.1.0"
-description = "Truth jet analysis pipeline with surrogate model inference"
-requires-python = ">=3.9"
-license = { text = "MIT" }
-dependencies = [
-    "numpy>=1.21",
-    "fastjet",
-    "awkward>=2.0",
-    "pyhepmc>=2.0",
-    "onnxruntime>=1.16",
-    "click>=8.0",
-    "particle>=0.23",
-    "h5py>=3.0",
-]
+version = "0.2.0"
+description = "Truth-level surrogate for a detector-level emerging-jet transformer tagger"
+requires-python = ">=3.11"
 
 [project.scripts]
 jet-surrogate = "jet_surrogate.cli:main"

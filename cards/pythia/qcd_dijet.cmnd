@@ -1,0 +1,19 @@
+! QCD dijet background. pTHat slice matched to the Z'(1.5 TeV) -> dijet
+! spectrum, as in displaced-observables. Seed and event count are
+! appended programmatically by scripts/generate.py.
+
+Beams:idA = 2212
+Beams:idB = 2212
+Beams:eCM = 13600.
+
+HardQCD:all = on
+PhaseSpace:pTHatMin = 450.
+
+Random:setSeed = on
+Main:timesAllowErrors = 100
+Init:showChangedSettings = off
+Init:showChangedParticleData = off
+Next:numberCount = 1000
+Next:numberShowEvent = 0
+Next:numberShowProcess = 0
+Next:numberShowInfo = 0

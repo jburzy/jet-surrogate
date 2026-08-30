@@ -1,0 +1,93 @@
+[workspace]
+authors = ["jburzyns <jackson.carl.burzynski@cern.ch>"]
+channels = ["conda-forge"]
+name = "jet-surrogate"
+platforms = ["linux-64", "osx-arm64"]
+version = "0.2.0"
+
+# One environment for the whole chain: Pythia8 -> Delphes (ATLAS card) ->
+# fastjet reclustering -> torch transformer tagger -> truth-level surrogate.
+#   pixi install            # default (CPU torch)
+#   pixi install -e gpu     # linux-64 only, CUDA torch for training
+[tasks]
+# every step goes through the one executable: `pixi run jet-surrogate <command>`
+generate        = "jet-surrogate generate"
+skim            = "jet-surrogate skim"
+train-tagger    = "jet-surrogate train-tagger"
+apply-tagger    = "jet-surrogate apply-tagger"
+train-surrogate = "jet-surrogate train-surrogate"
+evaluate        = "jet-surrogate evaluate"
+visualize       = "jet-surrogate visualize"
+test            = "pytest tests/ -v"
+paper           = "tectonic paper/main.tex"
+
+[dependencies]
+python = "3.12.*"
+# generators + detector simulation
+pythia8 = ">=8.312"
+lhapdf = "*"
+hepmc3 = "*"
+delphes = ">=3.5"
+root = "*"
+# jets
+fastjet = ">=3.4"
+# analysis stack
+numpy = "*"
+awkward = ">=2"
+uproot = ">=5"
+vector = "*"
+pyarrow = "*"
+h5py = "*"
+scipy = "*"
+scikit-learn = "*"
+matplotlib = "*"
+mplhep = ">=1.3.3,<2"
+tqdm = "*"
+pyyaml = "*"
+pytest = "*"
+# ML
+pytorch = ">=2.4"
+onnx = "*"
+onnxruntime = "*"
+onnxscript = "*"
+tectonic = ">=0.17.0,<0.18"
+lightning = ">=2.4"
+jsonargparse = "*"
+typeshed-client = "*"     # jsonargparse[signatures] extras
+docstring_parser = "*"
+
+[pypi-dependencies]
+jet-surrogate = { path = ".", editable = true }
+comet_ml = "*"          # not on conda-forge
+
+# CUDA torch for the GPU nodes (ouheptmp / gpu partitions). linux-64 only so
+# the lockfile still solves for osx-arm64.
+[feature.gpu]
+platforms = ["linux-64"]
+[feature.gpu.system-requirements]
+cuda = "12"
+[feature.gpu.dependencies]
+pytorch-gpu = "*"
+cuda-version = "12.*"
+
+# Slim inference stack for the reinterpretation service (no Delphes/ROOT/Lightning):
+#   pixi install -e infer && pixi run -e infer jet-surrogate predict --hepmc ...
+[feature.infer.dependencies]
+python = "3.12.*"
+pythia8 = ">=8.312"          # particle table (charges) only
+hepmc3 = "*"                 # pyHepMC3 reader/writer
+fastjet = ">=3.4"
+numpy = "*"
+awkward = ">=2"
+uproot = ">=5"
+vector = "*"
+h5py = "*"
+scipy = "*"
+pyyaml = "*"
+pytorch = ">=2.4"
+[feature.infer.pypi-dependencies]
+jet-surrogate = { path = ".", editable = true }
+
+[environments]
+gpu = { features = ["gpu"] }
+infer = { features = ["infer"], no-default-feature = true }
