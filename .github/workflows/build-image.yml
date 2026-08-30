@@ -2,7 +2,7 @@ name: build inference image
 on:
   push:
     branches: [main]
-    paths: [Dockerfile, pixi.toml, pixi.lock, pyproject.toml, "src/**", "models/release/**"]
+    paths: [Dockerfile, pixi.toml, pixi.lock, pyproject.toml, "src/**", "analyses/**", ".github/workflows/build-image.yml"]
   workflow_dispatch:
 permissions:
   contents: read
