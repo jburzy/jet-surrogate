@@ -194,6 +194,21 @@ publish the package once (Settings -> Packages: make it public, or grant the
 repo read access), and apply the `reinterpret` label to issues you want
 processed (the template applies it automatically).
 
+## Web service
+
+```bash
+pixi install -e infer
+pixi run -e infer serve                 # http://localhost:8080, upload page + JSON API (POST /jobs, GET /jobs/<id>)
+pixi run -e infer worker                # in a second shell: runs queued jobs with the released surrogate
+pixi run -e infer test-service          # end-to-end test on a tiny Pythia sample
+```
+
+Jobs are queued in `JS_SERVICE_DIR` (SQLite + one directory per job) and
+executed by any number of workers; uploads are deleted after processing and
+results expire (`JS_JOB_TTL_HOURS`). `Dockerfile` packages the same three
+roles; `deploy/paas/` holds the OpenShift manifests and `deploy/README.md`
+the CERN PaaS deployment steps.
+
 ## Layout
 
 ```
@@ -209,6 +224,7 @@ src/jet_surrogate/
   features.py                 track / particle feature tables, padding, transforms
   skim.py                     ROOT -> HDF5 per-jet tables (skim_truth: the generator-only half)
   hepmc_io.py                 HepMC2/3 reader, HepMC3 writer (predict, export-hepmc, generate --format hepmc)
+  service/                    web service: FastAPI app, SQLite job store, worker
   data.py                     skim discovery, seed splits, in-memory tables
   models.py, training.py      transformer, preprocessing, inference checkpoints, ONNX export
   lightning/                  Lightning data module, module, callbacks, CLI (training)
@@ -216,5 +232,7 @@ src/jet_surrogate/
   metrics.py                  working points, Poisson-binomial SR efficiency
 slurm/                        generation arrays, GPU wrapper, ML dependency chain, re-skim, status, tools/
 paper/                        JHEP-style draft (pixi run paper)
+deploy/paas/                  OpenShift manifests for CERN PaaS (deploy/README.md)
+Dockerfile, .github/          inference image, issue-driven reinterpretation workflow
 tests/                        unit tests (pixi run test)
 ```

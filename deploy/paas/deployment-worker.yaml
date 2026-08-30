@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jet-surrogate-worker
+spec:
+  replicas: 2                        # one job per worker at a time; scale with the quota
+  selector:
+    matchLabels: {component: worker}
+  template:
+    metadata:
+      labels: {component: worker}
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/jburzy/jet-surrogate:latest
+          args: ["worker"]
+          envFrom: [{configMapRef: {name: jet-surrogate-config}}]
+          volumeMounts: [{name: data, mountPath: /data}]
+          resources:
+            requests: {cpu: "1", memory: 3Gi}
+            limits: {cpu: "2", memory: 6Gi}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: jet-surrogate-data}

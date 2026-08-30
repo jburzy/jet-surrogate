@@ -314,11 +314,14 @@ Chosen production route (author): **CERN PaaS** (OpenShift, paas.cern.ch)
 hosting a FastAPI web pod + worker pods from the same image, PVC for
 uploads/results, site name via webservices.web.cern.ch, image from GHCR or
 CERN Harbor; inference in the pods, batch offload (HTCondor at CERN or an
-OSCER pull worker) only if inputs grow. To build: `jet-surrogate serve` /
-`worker` commands, `deploy/paas/` manifests (Deployments, Service, Route,
-PVC, cleanup CronJob), HepMC validation step, per-request limits. The
-author has to create the PaaS project, register the site name and decide
-SSO vs open access.
+OSCER pull worker) only if inputs grow. Built (2026-08-29): `service/{jobs,app,worker}.py`,
+`jet-surrogate serve|worker`, `deploy/paas/` (kustomize: ConfigMap, PVC
+RWX, web + worker Deployments, Service, Route, cleanup CronJob),
+`deploy/README.md`; `pixi run -e infer test-service` passes end to end.
+Still to do: the author creates the PaaS project, registers the site name,
+decides SSO vs open access, makes the GHCR package public; then
+`oc apply -k deploy/paas`. Later: a HepMC validation report before running,
+a compiled HepMC reader (~7 events/s now), batch offload for large inputs.
 
 ## Next steps
 
