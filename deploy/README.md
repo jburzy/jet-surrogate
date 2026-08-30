@@ -15,8 +15,12 @@ one directory per job. Configuration is the `ConfigMap` (`JS_*` variables).
    (250m) plus one worker (500m). Request more (4 CPU, 12 GiB) through
    Service Now to run several workers, then raise `replicas` and the
    worker requests in `deploy/paas/deployment-worker.yaml`.
-2. Access: start open (upload and event limits, TTL); CERN SSO can be
-   enabled later on the site record.
+2. Access: routes in a PaaS project are CERN-only by default through an
+   HAProxy IP whitelist set from the project annotation
+   `custom-ingress.okd.cern.ch/default-route-ip-whitelist`. Our Route
+   overrides it with an empty `haproxy.router.openshift.io/ip_whitelist`
+   (Internet). CERN SSO in front of the site is configured in the
+   Application Portal (link in the project annotations).
 3. Image: the GitHub workflow `build-image` publishes
    `ghcr.io/jburzy/jet-surrogate:latest` on every push to `main` touching
    the code or the model. Make the package public, or create a pull secret
