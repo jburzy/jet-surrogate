@@ -18,7 +18,7 @@ apply-tagger    = "jet-surrogate apply-tagger"
 train-surrogate = "jet-surrogate train-surrogate"
 evaluate        = "jet-surrogate evaluate"
 visualize       = "jet-surrogate visualize"
-test            = "pytest tests/ -v --ignore=tests/test_service.py"
+test            = "pytest tests/ -v --ignore=tests/test_service.py --ignore=tests/test_predictor_plugin.py"
 paper           = "tectonic paper/main.tex"
 
 [dependencies]
@@ -93,7 +93,7 @@ httpx = "*"                  # API tests
 markdown = "*"               # analysis README rendering
 pytest = "*"
 [feature.infer.tasks]
-test-service = "pytest tests/test_service.py -v"     # pixi run -e infer test-service
+test-service = "pytest tests/test_service.py tests/test_predictor_plugin.py -v"     # pixi run -e infer test-service
 serve        = "jet-surrogate serve"
 worker       = "jet-surrogate worker"
 [feature.infer.pypi-dependencies]

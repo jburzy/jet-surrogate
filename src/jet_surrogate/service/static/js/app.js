@@ -1,3 +1,5 @@
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function singular(s) { return s && s.endsWith('s') ? s.slice(0, -1) : s; }
 /* PRISM (Physics Reinterpretation with Intelligent Surrogate Models). Shared front-end script.
    Every page is driven by the JSON API under /api/. When the API cannot be
    reached (for example when previewing with python3 -m http.server) the
@@ -379,9 +381,10 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       '<span class="stat__pct">' + esc(fmt.pct(r.sr_efficiency, r.sr_efficiency_err)) + ' of your events</span></div>' +
       '<div class="stat-row">' +
       '<div class="stat"><span class="stat__label">Events analysed</span><span class="stat__value">' + esc(fmt.int(r.n_events)) + '</span></div>' +
-      '<div class="stat"><span class="stat__label">Truth jets</span><span class="stat__value">' + esc(fmt.int(r.n_truth_jets)) + '</span></div>' +
-      '<div class="stat"><span class="stat__label">Mean jet probability</span><span class="stat__value">' + esc(fmt.prob(r.mean_jet_probability)) + '</span></div>' +
-      (r.sr_efficiency_threshold05 != null ? '<div class="stat"><span class="stat__label">Efficiency counting jets at p &gt; 0.5</span><span class="stat__value">' + esc(Number(r.sr_efficiency_threshold05).toFixed(fmt.effDigits(r.sr_efficiency_err))) + '</span></div>' : '') +
+      (r.objects ? '<div class="stat"><span class="stat__label">' + esc(cap(r.objects.label || 'objects')) + '</span><span class="stat__value">' + esc(fmt.int(r.objects.count)) + '</span></div>' +
+        (r.objects.mean_probability != null ? '<div class="stat"><span class="stat__label">Mean probability per ' + esc(singular(r.objects.label || 'object')) + '</span><span class="stat__value">' + esc(fmt.prob(r.objects.mean_probability)) + '</span></div>' : '')
+       : (r.n_truth_jets != null ? '<div class="stat"><span class="stat__label">Truth jets</span><span class="stat__value">' + esc(fmt.int(r.n_truth_jets)) + '</span></div>' : '')) +
+      (r.sr_efficiency_threshold05 != null && r.objects ? '<div class="stat"><span class="stat__label">Efficiency counting ' + esc(r.objects.label || 'objects') + ' at p &gt; 0.5</span><span class="stat__value">' + esc(Number(r.sr_efficiency_threshold05).toFixed(fmt.effDigits(r.sr_efficiency_err))) + '</span></div>' : '') +
       '</div>' +
       '<p class="muted small" style="margin:0">Surrogate ' + esc(r.model || a.model && a.model.file || '') + (r.version ? ', version ' + esc(r.version) : '') + '</p>' +
       '</div>' +
@@ -389,7 +392,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       '<p class="hist__caption">Each event gets a probability of entering the signal region, combined from the per-jet surrogate outputs. The efficiency is the mean of this distribution. The per-event values are in the HDF5 download.</p></div>' +
       '</div>' +
       '<p class="result__explain"><strong>What this number means.</strong> The efficiency is the predicted fraction of your events that would pass the selection of this analysis: ' + sr + ' The uncertainty is statistical (from the number of events you uploaded) and does not include the accuracy of the surrogate itself, which is documented on the analysis page.' +
-      (r.sr_efficiency_threshold05 != null ? ' The second efficiency counts a jet as tagged only when its probability is above 0.5, a cross-check that should agree with the main number when the surrogate is confident.' : '') + '</p>' +
+      (r.sr_efficiency_threshold05 != null && r.objects ? ' The second efficiency counts an object as selected only when its probability is above 0.5, a cross-check that should agree with the main number when the surrogate is confident.' : '') + '</p>' +
       '<div class="result__links">' +
       '<a href="' + esc(jobUrl(job.id, '/result.h5')) + '">' + ICONS.download + ' Per-event probabilities (HDF5)</a>' +
       '<a href="' + esc(jobUrl(job.id, '/log')) + '" target="_blank" rel="noopener">' + ICONS.doc + ' Job log</a>' +

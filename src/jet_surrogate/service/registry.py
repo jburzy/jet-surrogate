@@ -4,9 +4,9 @@ surrogate model files, a ``README.md`` model card and optional
 ``figures/``. New analyses arrive by pull request; ``validate()`` is what CI
 and the tests run on every record.
 
-A predictor type turns a HepMC file into (summary, per-event probabilities).
-``jet_surrogate`` is the first; adding another means registering a class in
-``PREDICTORS`` that follows the same interface.
+A predictor type turns a HepMC file into per-event signal-region
+probabilities; see ``service/predictors/`` for the interface and the
+``jet_surrogate`` implementation.
 """
 
 from __future__ import annotations
@@ -127,36 +127,6 @@ def render_markdown(text: str) -> str:
 
 
 # ------------------------------------------------------------------ predictors
-class JetSurrogatePredictor:
-    """Truth large-R jets -> per-jet probabilities -> Poisson-binomial event probability."""
+from .predictors import PREDICTORS, load_all as _load_predictors  # noqa: E402
 
-    def __init__(self, analysis: Analysis, device="cpu"):
-        from ..training import load_checkpoint, pick_device
-        self.analysis = analysis
-        self.device = pick_device(device)
-        self.model, self.pre, _ = load_checkpoint(analysis.model_path, self.device)
-        self.model.to(self.device)
-
-    def run(self, hepmc: Path, max_events: int, progress=None, chunk: int = 1000):
-        from ..commands.predict import predict_sample
-        from ..hepmc_io import read_hepmc
-        from ..skim import skim_truth
-        jets, parts, n_ev = [], [], 0
-        for batch in read_hepmc(hepmc, max_events=max_events, chunk=chunk):
-            tj, tp = skim_truth(batch.part)
-            tj["event"] += n_ev
-            jets.append(tj); parts.append(tp); n_ev += len(batch)
-            if progress:
-                progress(f"{n_ev} events read, {sum(len(j) for j in jets)} truth jets")
-        if n_ev == 0:
-            raise ValueError("no events could be read from the input (is it HepMC2/3 ASCII?)")
-        jets = np.concatenate(jets); parts = np.concatenate(parts)
-        summary, per_event, prob = predict_sample(jets, parts, n_ev, self.model, self.pre, self.device)
-        counts, edges = np.histogram(per_event, bins=30, range=(0.0, 1.0))
-        summary.update({"analysis": self.analysis.id, "version": str(self.analysis.record["version"]),
-                        "model": self.analysis.record["predictor"]["model"],
-                        "histogram": {"edges": edges.round(4).tolist(), "counts": counts.tolist()}})
-        return summary, per_event, {"jet_probability": prob, "truth_jets": jets}
-
-
-PREDICTORS = {"jet_surrogate": JetSurrogatePredictor}
+_load_predictors()

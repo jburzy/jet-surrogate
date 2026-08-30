@@ -81,30 +81,48 @@ def run(args) -> None:
     if not args.hepmc and not args.skim:
         raise SystemExit("give --hepmc and/or --skim inputs")
     device = pick_device(args.device)
-    model_path = args.model
-    if model_path is None:
-        from ..service import registry
+    out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
+    from ..service import registry
+    from ..service.predictors import finish_summary
+
+    if args.model is None:
+        # HepMC inputs go through the analysis' registered predictor type, whatever it is
         a = registry.load(strict=False).get(args.analysis)
         if a is None:
             raise SystemExit(f"unknown analysis '{args.analysis}' (see analyses/); or pass --model")
+        predictor = registry.PREDICTORS[a.predictor_type](a, device=str(device))
+        for path in args.hepmc:
+            summary, per_event, extras = predictor.run(path, args.max_events or a.record.get("max_events", 10**9),
+                                                       progress=lambda m: print(f"  {path.name}: {m}", flush=True))
+            summary["input"] = str(path)
+            _write(out, f"{path.stem}_hepmc", summary, per_event, extras)
+        if args.skim and a.predictor_type != "jet_surrogate":
+            raise SystemExit("--skim inputs are only meaningful for jet_surrogate analyses")
+        model, pre = predictor.model, predictor.pre
         model_path = a.model_path
-    model, pre, extra = load_checkpoint(model_path, device)
-    model.to(device)
-    out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
-    for path in [*args.hepmc, *args.skim]:
-        if path.suffix == ".h5":
-            jets, parts, n_ev = _truth_from_skim(path, args.max_events)
-        else:
+    else:
+        a = None
+        model_path = Path(args.model)
+        model, pre, _ = load_checkpoint(model_path, device)
+        model.to(device)
+        for path in args.hepmc:
             jets, parts, n_ev = _truth_from_hepmc(path, args.max_events, args.chunk)
+            summary, per_event, prob = predict_sample(jets, parts, n_ev, model, pre, device)
+            summary.update({"input": str(path), "model": str(model_path)})
+            _write(out, f"{path.stem}_hepmc", summary, per_event, {"jet_probability": prob, "truth_jets": jets})
+    for path in args.skim:
+        jets, parts, n_ev = _truth_from_skim(path, args.max_events)
         summary, per_event, prob = predict_sample(jets, parts, n_ev, model, pre, device)
-        summary.update({"input": str(path), "model": str(model_path), "analysis": None if args.model else args.analysis})
-        stem = f"{path.stem}_{'skim' if path.suffix == '.h5' else 'hepmc'}"
-        (out / f"{stem}.json").write_text(json.dumps(summary, indent=1))
-        with h5py.File(out / f"{stem}.h5", "w") as h:
-            h.create_dataset("event_probability", data=per_event.astype(np.float32))
-            h.create_dataset("jet_probability", data=prob.astype(np.float32))
-            h.create_dataset("truth_jets", data=jets)
-            h.attrs.update({k: v for k, v in summary.items() if v is not None})
-        print(f"{path.name}: {n_ev} events, {len(jets)} truth jets, "
-              f"SR efficiency {summary['sr_efficiency']:.4f} +- {summary['sr_efficiency_err']:.4f} "
-              f"(threshold 0.5: {summary['sr_efficiency_threshold05']:.4f})", flush=True)
+        summary.update({"input": str(path), "model": str(model_path), "analysis": a.id if a else None})
+        _write(out, f"{path.stem}_skim", summary, per_event, {"jet_probability": prob, "truth_jets": jets})
+
+
+def _write(out: Path, stem: str, summary: dict, per_event, extras: dict) -> None:
+    (out / f"{stem}.json").write_text(json.dumps(summary, indent=1))
+    with h5py.File(out / f"{stem}.h5", "w") as h:
+        h.create_dataset("event_probability", data=np.asarray(per_event, np.float32))
+        for k, v in extras.items():
+            h.create_dataset(k, data=v)
+        h.attrs.update({k: v for k, v in summary.items() if isinstance(v, (int, float, str))})
+    print(f"{stem}: {summary['n_events']} events, SR efficiency {summary['sr_efficiency']:.4f} "
+          f"+- {summary['sr_efficiency_err']:.4f}", flush=True)

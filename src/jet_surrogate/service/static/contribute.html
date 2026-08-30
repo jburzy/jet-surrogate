@@ -164,7 +164,51 @@ figures:                         # optional, files in figures/
         </div>
       </section>
     </div>
-  </main>
+  
+      <section class="section" id="predictor-types">
+        <h2>Adding a predictor type</h2>
+        <div class="section__body">
+          <p>
+            An analysis names its predictor type in <code>analysis.yaml</code>. The library ships
+            <code>jet_surrogate</code> (truth jets, a per-jet probability, the Poisson-binomial probability of two
+            selected jets). A surrogate of a different shape, for example a gradient-boosted model on a fixed set of
+            particles or an event-level classifier, is a new type: one Python class in
+            <code>src/jet_surrogate/service/predictors/</code>.
+          </p>
+          <pre><code>from . import Predictor, finish_summary, register
+
+@register("two_particle_xgb")
+class TwoParticleXGB(Predictor):
+    def __init__(self, analysis, device="cpu"):
+        super().__init__(analysis, device)
+        import xgboost
+        self.booster = xgboost.Booster(); self.booster.load_model(analysis.model_path)
+        self.config = analysis.record["predictor"].get("config", {})
+
+    def run(self, hepmc, max_events, progress=None):
+        from jet_surrogate.hepmc_io import read_hepmc
+        probs = []
+        for batch in read_hepmc(hepmc, max_events=max_events):
+            features = my_two_particle_features(batch.part, self.config)   # any function of the event record
+            probs.append(self.booster.inplace_predict(features))
+            if progress: progress(f"{sum(len(p) for p in probs)} events")
+        per_event = np.concatenate(probs)
+        return finish_summary(self.analysis, {}, per_event,
+                              objects={"label": "particle pairs", "count": len(per_event),
+                                       "mean_probability": None}), per_event, {}</code></pre>
+          <p>
+            <code>read_hepmc</code> yields batches with every particle of every event (identity, status, mother and
+            daughter links, kinematics, production vertices), so the class selects whatever objects and features the
+            model needs. <code>finish_summary</code> fills the fields every result carries (efficiency and its
+            uncertainty from the per-event probabilities, the histogram, provenance). Add the model's dependency to the
+            <code>infer</code> feature in <code>pixi.toml</code>, name the type in <code>analysis.yaml</code>
+            (<code>predictor: {type: two_particle_xgb, model: model.json, config: {...}}</code>), and include a test
+            like <code>tests/test_predictor_plugin.py</code>. The website, the API, the command line and the GitHub
+            workflow all dispatch on the type, so nothing else changes.
+          </p>
+        </div>
+      </section>
+</main>
 
   <footer class="site-footer">
     <div class="site-footer__inner container">
