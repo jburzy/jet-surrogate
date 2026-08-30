@@ -197,7 +197,7 @@ following the unflavored benchmark of the Dark Showers Task
 Force~\cite{Albouy:2022cin} and the original emerging-jets
 proposal~\cite{Schwaller:2015gea}. Dark rhos decay promptly to dark
 pion pairs, and dark pions decay to $d\bar d$ with proper lifetime
-scanned over $\ctau(\pid) \in \{0.01, 0.1, 1\}$~mm. This lifetime range
+scanned over $\ctau(\pid) \in \{0.01, 0.05, 0.1, 0.5, 1, 5\}$~mm. This lifetime range
 is deliberately short. At these lifetimes the displaced decay products
 remain inside the pixel volume and the discrimination between dark
 showers and QCD rests on impact parameters of a few tens of
@@ -213,14 +213,63 @@ changing one mass in isolation. The alternative points have
 $\mpid = 10$~GeV and $\mpid = 2$~GeV, with the same lifetime grid.
 These samples are never used in training.
 
+Beyond the mass rescaling, the fragmentation of the dark shower is
+varied at fixed $\mpid$ and $\ctau$ by scanning the confinement scale
+over $\mpid/\Lambda_{\mathrm{D}} \in \{0.2, 0.35, 0.5, 0.7, 1.0,
+1.4\}$, with $m_{\qD} = \Lambda_{\mathrm{D}}$, the shower cutoff
+following $\Lambda_{\mathrm{D}}$ and
+$m_{\rhod} = \max(2\Lambda_{\mathrm{D}}, 2.2\,\mpid)$ so that the
+forced $\rhod \to \pid\pid$ decay stays open, and by raising the
+number of degenerate dark-quark flavours from one to two and three.
+Two of the scan points, $\mpid/\Lambda_{\mathrm{D}} = 0.2$ and $1.0$,
+are also generated with high statistics on dedicated seeds and enter
+the training of the surrogate, while the remaining points are reserved
+for evaluation.
+
 The background is QCD dijet production with $\hat p_T > 450$~GeV,
-matched to the $Z'$ decay spectrum. The nominal signal model is
-generated with $3.4 \times 10^5$ events per lifetime point, for
-$1.0\times10^6$ signal events in total, and the background with
-$1.0\times10^6$ events. Each alternative-mass model uses
-$5\times10^4$ events per lifetime point. Random seeds are reused across
+matched to the $Z'$ decay spectrum. Random seeds are reused across
 the lifetime grid so that the hard process is common to all lifetime
-points, which makes the lifetime comparison a controlled one.
+points, which makes the lifetime comparison a controlled one. The
+samples, their sizes and their roles are collected in
+Table~\ref{tab:samples}. Samples are split by generator seed rather
+than by event, so that no event contributes to more than one of the
+training, validation and test sets, and the seeds that train the
+surrogate are disjoint from every seed the tagger has seen.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{llcll}
+    \toprule
+    sample & $\ctau$ grid & events & tagger seeds & surrogate seeds \\
+    \midrule
+    QCD dijet & -- & $1.0\times10^{6}$ & 1--60 / 61--70 / 71--100 & -- \\
+    nominal signal & 6 points & $3.2\times10^{6}$ & 1--24 / 25--27 / 28--34 & 35--54 \\
+    $\mpid/\Lambda_{\mathrm{D}} = 0.2$ & 6 points & $6.5\times10^{5}$ & -- & 35--44 \\
+    $\mpid/\Lambda_{\mathrm{D}} = 1.0$ & 6 points & $6.5\times10^{5}$ & -- & 35--44 \\
+    \midrule
+    $\mpid = 10$, $2$~GeV & 6 points & $3.0\times10^{5}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
+    $\mpid/\Lambda_{\mathrm{D}} = 0.35$, $0.7$, $1.4$ & $0.1$~mm & $5.0\times10^{4}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
+    $N_{\mathrm{flav}} = 2, 3$ & $0.1$~mm & $5.0\times10^{4}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Monte Carlo samples and their roles. The nominal signal
+  is the dark-shower benchmark with $\mpid = 5$~GeV, the background is
+  QCD dijet production with $\hat p_T > 450$~GeV, every sample
+  contains $10^{4}$ events per generator seed and lifetime point, and the
+  six-point lifetime grid is
+  $\ctau(\pid) \in \{0.01, 0.05, 0.1, 0.5, 1, 5\}$~mm. Tagger seeds
+  are given as training / validation / test. The training seeds of the
+  surrogate, including those of the two
+  $\mpid/\Lambda_{\mathrm{D}}$ training points, are disjoint from
+  every tagger seed and from the seeds of the evaluation samples, and
+  the scan points not listed as training, as well as the
+  alternative-mass models, are never used in training. The evaluation
+  rows also include the seeds 1--5 of the two
+  $\mpid/\Lambda_{\mathrm{D}}$ training points.}
+  \label{tab:samples}
+\end{table}
 
 \subsection{Detector simulation}
 \label{sec:detector}
@@ -312,11 +361,56 @@ and two quark daughters, which is exactly the information a generator
 provides for any long-lived state.
 
 Displacements are passed through a symmetric logarithm,
-$\mathrm{sign}(x)\ln(1 + |x|/10~\mu\mathrm{m})$, so that the
-micrometer-scale impact parameters of prompt tracks and the
-millimeter-scale decay lengths of dark pions occupy comparable dynamic
-range, and all continuous inputs are standardized with the training-set
-mean and standard deviation.
+$\mathrm{symlog}_{s}(x) = \mathrm{sign}(x)\ln(1 + |x|/s)$ with a
+scale $s$ of $10~\mu\mathrm{m}$ for transverse and $1$~mm for
+longitudinal quantities, so that the micrometer-scale impact parameters
+of prompt tracks and the millimeter-scale decay lengths of dark pions
+occupy comparable dynamic range. Energies and momenta enter
+logarithmically, and all continuous inputs are standardized with the
+training-set mean and standard deviation. The two input
+representations are summarized in Table~\ref{tab:features}.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{llc}
+    \toprule
+    input & description & transform \\
+    \midrule
+    \multicolumn{3}{l}{\emph{tagger, up to 100 tracks per jet ($\pT > 0.5$~GeV, $|\eta| < 2.5$)}} \\
+    $\pT$, $\pT/\pT^{\mathrm{jet}}$ & transverse momentum and jet momentum fraction & $\ln$ \\
+    $\Delta\eta$, $\Delta\phi$, $\dR$ & position relative to the jet axis & -- \\
+    $\dnought$ & transverse impact parameter, jet-signed & $\mathrm{symlog}_{10\,\mu\mathrm{m}}$ \\
+    $\znought$ & longitudinal impact parameter & $\mathrm{symlog}_{1\,\mathrm{mm}}$ \\
+    $\sigma(\dnought)$, $\sigma(\znought)$ & impact-parameter resolutions & $\ln$ \\
+    $q$ & electric charge & -- \\
+    type & hadron, electron or muon & embedded \\
+    \midrule
+    \multicolumn{3}{l}{\emph{surrogate, up to 150 generator particles per jet ($\pT > 0.5$~GeV)}} \\
+    $\pT$, $\pT/\pT^{\mathrm{jet}}$, $E$ & kinematics and jet momentum fraction & $\ln$ \\
+    $m$ & mass & -- \\
+    $\Delta\eta$, $\Delta\phi$, $\dR$ & position relative to the jet axis & -- \\
+    $q$, status & electric charge and generator status & -- \\
+    $L_{xy}^{\mathrm{prod}}$, $z^{\mathrm{prod}}$ & production vertex & symlog \\
+    $L_{xy}^{\mathrm{dec}}$, $z^{\mathrm{dec}}$, $L^{\mathrm{dec}}$ & decay vertex and flight length & symlog \\
+    $\Delta\eta^{\mathrm{dec}}$, $\Delta\phi^{\mathrm{dec}}$ & flight direction relative to the momentum & -- \\
+    has decay, $N_{\mathrm{ch}}$ & decay flag and number of decay products & -- \\
+    $\pT^{c_{1,2}}$, $\Delta\eta^{c_{1,2}}$, $\Delta\phi^{c_{1,2}}$, $m^{c_{1,2}}$ & kinematics of the first two decay products & $\ln$ ($\pT$) \\
+    PDG id, PDG id$^{c_{1,2}}$ & identities of the particle and its decay products & embedded \\
+    \bottomrule
+  \end{tabular}
+  \caption{Input features of the detector-level tagger (reconstructed
+  tracks) and of the truth-level surrogate (generator particles), both
+  relative to the associated large-radius jet. The symmetric logarithm
+  $\mathrm{symlog}_{s}(x) = \mathrm{sign}(x)\ln(1 + |x|/s)$ uses
+  $s = 10~\mu\mathrm{m}$ for transverse and $s = 1$~mm for
+  longitudinal displacements, and every continuous input is
+  standardized after its transform. Categorical inputs are learned
+  embeddings over the identifier vocabulary of the training set, with
+  unseen identifiers mapped to a shared token.}
+  \label{tab:features}
+\end{table}
 
 % =====================================================================
 \section{The detector-level emerging-jet tagger}
@@ -334,15 +428,14 @@ a single logit. The model has $0.57$ million parameters. It is trained
 with the binary cross-entropy loss using AdamW, a linear warm-up
 followed by a cosine learning-rate schedule with peak learning rate
 $3\times10^{-4}$, batches of 512 jets, and early stopping on the
-validation loss. The three signal lifetimes are pooled, so that a
+validation loss. The six signal lifetimes are pooled, so that a
 single tagger serves the full lifetime grid, as in the ATLAS search.
 
-Samples are split by generator seed rather than by event, so that no
-event contributes to more than one of the training, validation and test
-sets. Of the nominal signal, $24$ seeds per lifetime point are used for
-training, $3$ for validation and $7$ for testing, and of the
-background $60$, $10$ and $30$ seeds. The training set contains
-$2.2\times10^6$ large-radius jets, of which $9.8\times10^5$ are signal.
+The tagger trains on the training seeds of the nominal signal model
+and of the background of Table~\ref{tab:samples}, $24$ signal seeds
+per lifetime point and $60$ background seeds, with $3$ and $10$ seeds
+for validation. The training set contains $3.2\times10^6$
+large-radius jets, of which $2.0\times10^6$ are signal.
 
 \subsection{Working point and signal region}
 \label{sec:sr}
@@ -420,12 +513,19 @@ obtained from the binary cross-entropy loss, which is a proper scoring
 rule and therefore yields calibrated probabilities when the model
 capacity and statistics permit.
 
-The surrogate is trained on the training and validation seeds of the
-nominal signal model and of the background, with labels obtained by
-applying the frozen tagger to every reconstructed jet. Background jets
-are subsampled to $4000$ per file, since they contribute almost only
-negatives at the $10^{-3}$ working point. The alternative-mass models
-and the test seeds of the nominal model are held out entirely.
+The surrogate is trained on signal only, on the dedicated surrogate
+seeds of Table~\ref{tab:samples}, which are disjoint from every seed
+the tagger has seen, so that the labels are the out-of-sample decisions
+of the frozen tagger. The training set combines the nominal model with
+the two $\mpid/\Lambda_{\mathrm{D}}$ training points at all six
+lifetimes, $3.5\times10^{6}$ truth jets in total, so that the
+fragmentation of the dark shower and the amount of displacement vary
+independently in training. Background jets are not used, since the
+surrogate is never applied to background and jets with labels near
+zero only distort the calibration on the signal-like phase space. The
+alternative-mass models, the remaining
+$\mpid/\Lambda_{\mathrm{D}}$ points, the dark-flavour variants and
+the test seeds of the nominal model are held out entirely.
 
 \subsection{From jets to events}
 
