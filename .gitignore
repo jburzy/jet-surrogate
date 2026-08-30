@@ -7,7 +7,6 @@ logs/
 .cometml-runs/
 # trained models (released surrogates live in analyses/<id>/, which is versioned including figures)
 models/
-!analyses/**
 # results, figures and rendered documents
 results/
 results_*/
@@ -29,3 +28,5 @@ paper/*.out
 slurm/manifest_*.txt
 slurm/skim_list.txt
 .DS_Store
+# the analysis library is versioned in full, including its figures and models
+!analyses/**
