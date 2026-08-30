@@ -38,6 +38,11 @@ SCORES_DIR = os.environ.get("JS_SCORES_DIR", "data/scores")   # override for smo
 # 1-5 evaluation seeds and every tagger seed) are used.
 TRAIN_LAMBDAS = (25.0, 5.0)
 
+# Z'-mass points included in surrogate training (empty: the mzp variants are
+# evaluation-only closure tests of the learned pT dependence). Swap
+# experiments fill this, e.g. TRAIN_MZPS = (2000.0, 3000.0), and retrain.
+TRAIN_MZPS: tuple = ()
+
 
 @dataclass(frozen=True)
 class SkimFile:
@@ -49,21 +54,23 @@ class SkimFile:
     seed: int
     lam: float = -1.0        # -1: nominal Lambda scaling
     nflav: int = -1          # -1: nominal (one dark flavour)
+    mzp: float = -1.0        # -1: nominal Z' mass (1.5 TeV)
 
     @property
     def variant(self) -> bool:
-        """Model variant at the nominal mass (Lambda or nFlav scan)."""
-        return self.lam > 0 or self.nflav > 0
+        """Model variant at the nominal dark sector (Lambda, nFlav or Z'-mass scan)."""
+        return self.lam > 0 or self.nflav > 0 or self.mzp > 0
 
     @property
     def split(self) -> str:
         if self.sample == "qcd":
             return "train" if self.seed <= 60 else "val" if self.seed <= 70 else "test"
         if self.variant:
-            # dedicated high seeds of the training Lambda points feed the
+            # dedicated high seeds of the training variant points feed the
             # surrogate; the low evaluation seeds (and every held-out
             # variant) stay test
-            return "surrogate" if self.lam in TRAIN_LAMBDAS and self.seed >= 35 else "test"
+            trained = self.lam in TRAIN_LAMBDAS or self.mzp in TRAIN_MZPS
+            return "surrogate" if trained and self.seed >= 35 else "test"
         if self.mpid == NOMINAL_MPID:
             return ("train" if self.seed <= 24 else "val" if self.seed <= 27
                     else "test" if self.seed <= 34 else "surrogate")
@@ -86,7 +93,7 @@ def skim_files(data_dir: str | Path = "data/skim", *, samples=None, splits=None,
     out, missing = [], []
     for p in sorted(Path(data_dir).glob("*.h5")):
         m = parse_stem(p.stem)
-        f = SkimFile(p, m["sample"], m["tag"], m["ctau"], m["mpid"], m["seed"], m["lam"], m["nflav"])
+        f = SkimFile(p, m["sample"], m["tag"], m["ctau"], m["mpid"], m["seed"], m["lam"], m["nflav"], m["mzp"])
         if samples and f.sample not in samples:
             continue
         if splits and f.split not in splits:

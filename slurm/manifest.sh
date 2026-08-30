@@ -55,4 +55,15 @@ tvoutfile() { printf '%s/signal_m5_ctau%gmm_lam%s_seed%d.root' "$DATA" "$1" "$2"
     echo "signal 5 $c $s --lambda $l"
   done; done; done
 } > "$DIR/manifest_variants_train.txt"
+
+# Z'-mass scan at the nominal dark sector, all lifetimes: closure test of the
+# learned pT dependence (evaluation seeds 1-5) plus dedicated training seeds
+# 35-44 for the swap experiments
+MZP_POINTS="2000 2500 3000"
+mzoutfile() { printf '%s/signal_m5_ctau%gmm_mzp%s_seed%d.root' "$DATA" "$1" "$2" "$3"; }
+{ for z in $MZP_POINTS; do for c in $CTAUS; do for s in $(seq 1 5) $(seq 35 44); do
+    if [[ $TODO_ONLY == --todo ]] && [[ -s $(mzoutfile "$c" "$z" "$s") ]]; then continue; fi
+    echo "signal 5 $c $s --mzp $z"
+  done; done; done
+} > "$DIR/manifest_mzp.txt"
 for f in "$DIR"/manifest_*.txt; do printf '%-50s %5d jobs\n' "$f" "$(wc -l < "$f")"; done

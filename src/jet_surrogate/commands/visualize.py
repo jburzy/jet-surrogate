@@ -244,7 +244,7 @@ def plot_shapes(shapes: dict, out: Path) -> None:
     efficiencies), one curve per variant, nominal always included."""
     from ..generate import NOMINAL_LAMBDA, NOMINAL_MPID
     from ..plotting import color, decorate, plt, save
-    nom = [r for r in shapes.values() if r["lam"] < 0 and r["nflav"] < 0]
+    nom = [r for r in shapes.values() if r["lam"] < 0 and r["nflav"] < 0 and r.get("mzp", -1) < 0]
     ref = [r for r in nom if abs(r["ctau"] - 0.1) < 1e-9]
     scans = {
         "lambda": sorted([r for r in shapes.values() if r["lam"] > 0] + ref,

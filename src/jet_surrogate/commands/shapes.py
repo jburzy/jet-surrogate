@@ -122,7 +122,7 @@ def run(args) -> None:
         print(f"{tag}: {len(groups[tag])} files", flush=True)
         r = group_shapes(groups[tag])
         f0 = groups[tag][0]
-        r.update({"tag": tag, "ctau": f0.ctau, "mpid": f0.mpid, "lam": f0.lam, "nflav": f0.nflav})
+        r.update({"tag": tag, "ctau": f0.ctau, "mpid": f0.mpid, "lam": f0.lam, "nflav": f0.nflav, "mzp": f0.mzp})
         results[tag] = r
         print(f"  jets {r['n_reco_jets']}, eff {r['jet_eff_actual']:.3f}, "
               f"<n_trk> {r['means']['n_trk']:.1f}, <n_disp> {r['means']['n_disp']:.1f}, "

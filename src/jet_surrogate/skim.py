@@ -31,7 +31,7 @@ from .jets import (LARGE_PT_MIN, associate, jet_table, match_jets, recluster_lar
 
 TRUTH_PT_MIN = 150.0
 _TAG_RE = re.compile(r"^(?P<tag>signal_m(?P<mpid>[\d.]+)_ctau(?P<ctau>[\d.]+)mm"
-                     r"(?:_lam(?P<lam>[\d.]+))?(?:_nf(?P<nflav>\d+))?|qcd)_seed(?P<seed>\d+)$")
+                     r"(?:_lam(?P<lam>[\d.]+))?(?:_nf(?P<nflav>\d+))?(?:_mzp(?P<mzp>[\d.]+))?|qcd)_seed(?P<seed>\d+)$")
 
 
 def parse_stem(stem: str) -> dict:
@@ -42,7 +42,8 @@ def parse_stem(stem: str) -> dict:
     return {"sample": "qcd" if d["tag"] == "qcd" else "signal", "tag": d["tag"],
             "ctau": float(d["ctau"]) if d["ctau"] else -1.0,
             "mpid": float(d["mpid"]) if d["mpid"] else -1.0, "seed": int(d["seed"]),
-            "lam": float(d["lam"]) if d["lam"] else -1.0, "nflav": int(d["nflav"]) if d["nflav"] else -1}
+            "lam": float(d["lam"]) if d["lam"] else -1.0, "nflav": int(d["nflav"]) if d["nflav"] else -1,
+            "mzp": float(d["mzp"]) if d["mzp"] else -1.0}
 
 
 def skim_truth(part: ak.Array) -> tuple[np.ndarray, np.ndarray]:

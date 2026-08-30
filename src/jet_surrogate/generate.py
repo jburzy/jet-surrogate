@@ -37,7 +37,7 @@ DARK_RHO_OFFDIAG_ID = 4900213
 
 
 def sample_tag(sample: str, *, ctau_mm: float | None = None, mpid: float = NOMINAL_MPID,
-               lam: float | None = None, nflav: int | None = None) -> str:
+               lam: float | None = None, nflav: int | None = None, mzp: float | None = None) -> str:
     """Canonical file stem (without seed) for a sample point. Model variants
     (a non-nominal Lambda at fixed masses, or nFlav > 1) get a suffix."""
     if sample == "qcd":
@@ -50,12 +50,15 @@ def sample_tag(sample: str, *, ctau_mm: float | None = None, mpid: float = NOMIN
             tag += f"_lam{lam:g}"
         if nflav is not None:
             tag += f"_nf{nflav:d}"
+        if mzp is not None:
+            tag += f"_mzp{mzp:g}"
         return tag
     raise ValueError(f"unknown sample {sample!r}")
 
 
 def pythia_overrides(sample: str, *, n_events: int, seed: int, ctau_mm: float | None, mpid: float,
-                     lam: float | None = None, nflav: int | None = None) -> list[str]:
+                     lam: float | None = None, nflav: int | None = None,
+                     mzp: float | None = None) -> list[str]:
     """Per-run Pythia settings.
 
     Nominal: the whole dark sector scales with m_pid / 5 GeV (Lambda = 2 m_pi,
@@ -63,6 +66,9 @@ def pythia_overrides(sample: str, *, n_events: int, seed: int, ctau_mm: float | 
     ``lam`` fixes Lambda at the given m_pid instead (m_qv = Lambda,
     pTminFSR = 1.1 Lambda); m_rho = max(2 Lambda, 2.2 m_pi) keeps the forced
     rho_D -> pi_D pi_D decay open once m_pi / Lambda >= 1.
+    ``mzp`` overrides the Z' mass in GeV (nominal 1500, width kept at 1%%
+    of the mass), changing the dark-quark and hence dark-hadron pT spectra
+    at a fixed dark sector.
     ``nflav`` > 1 switches on more dark-quark flavours; the off-diagonal
     mesons (4900211, 4900213) copy the masses, lifetime and decays of the
     diagonal ones, and the Z' decays to all flavours.
@@ -86,6 +92,8 @@ def pythia_overrides(sample: str, *, n_events: int, seed: int, ctau_mm: float | 
             f"{DARK_RHO_ID}:m0 = {m_rho:g}",
             f"{DARK_PION_ID}:tau0 = {ctau_mm:g}",
         ]
+        if mzp is not None:
+            lines += [f"4900023:m0 = {mzp:g}", f"4900023:mWidth = {mzp / 100:g}"]
         if nflav is not None and nflav > 1:
             quarks = [DARK_QUARK_ID + i for i in range(nflav)]
             lines += [f"HiddenValley:nFlav = {nflav}"]
@@ -104,11 +112,11 @@ def pythia_overrides(sample: str, *, n_events: int, seed: int, ctau_mm: float | 
 
 def write_card(sample: str, out_cmnd: Path, *, n_events: int, seed: int,
                ctau_mm: float | None = None, mpid: float = NOMINAL_MPID,
-               lam: float | None = None, nflav: int | None = None) -> Path:
+               lam: float | None = None, nflav: int | None = None, mzp: float | None = None) -> Path:
     base = CARD_DIR / "pythia" / ("signal_zprime_hv.cmnd" if sample == "signal" else "qcd_dijet.cmnd")
     text = base.read_text().rstrip() + "\n" + "\n".join(
         pythia_overrides(sample, n_events=n_events, seed=seed, ctau_mm=ctau_mm, mpid=mpid,
-                         lam=lam, nflav=nflav)
+                         lam=lam, nflav=nflav, mzp=mzp)
     ) + "\n"
     out_cmnd.parent.mkdir(parents=True, exist_ok=True)
     out_cmnd.write_text(text)
@@ -117,7 +125,7 @@ def write_card(sample: str, out_cmnd: Path, *, n_events: int, seed: int,
 
 def generate_sample(sample: str, *, n_events: int, seed: int = 1,
                     ctau_mm: float | None = None, mpid: float = NOMINAL_MPID,
-                    lam: float | None = None, nflav: int | None = None,
+                    lam: float | None = None, nflav: int | None = None, mzp: float | None = None,
                     out_dir: str | Path = "data/delphes",
                     delphes_card: Path = DELPHES_CARD, quiet: bool = False) -> Path:
     """Run DelphesPythia8 for one (sample, ctau, mass, seed). Returns the ROOT path."""
@@ -126,10 +134,10 @@ def generate_sample(sample: str, *, n_events: int, seed: int = 1,
         raise RuntimeError("DelphesPythia8 not on PATH: run inside `pixi run`")
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)}_seed{seed}"
+    stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav, mzp=mzp)}_seed{seed}"
     root = out_dir / f"{stem}.root"
     cmnd = write_card(sample, out_dir / f"{stem}.cmnd", n_events=n_events, seed=seed,
-                      ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)
+                      ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav, mzp=mzp)
     tmp = out_dir / f"{stem}.root.part"
     tmp.unlink(missing_ok=True)
     cmd = [exe, str(Path(delphes_card).resolve()), str(cmnd), str(tmp)]

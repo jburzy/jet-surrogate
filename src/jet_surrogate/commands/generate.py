@@ -26,6 +26,7 @@ def add_arguments(ap) -> None:
     ap.add_argument("--lambda", dest="lam", type=float, default=None,
                     help="HiddenValley:Lambda in GeV at fixed masses (default: 2 m_pid, the nominal scaling)")
     ap.add_argument("--nflav", type=int, default=None, help="number of dark-quark flavours (default 1)")
+    ap.add_argument("--mzp", type=float, default=None, help="Z' mass in GeV (default 1500)")
     ap.add_argument("--nevents", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out", default="data/delphes")
@@ -65,5 +66,5 @@ def run(args) -> None:
         else:
             out = generate_sample(args.sample, n_events=args.nevents, seed=args.seed,
                                   ctau_mm=ctau, mpid=args.mpid, lam=args.lam, nflav=args.nflav,
-                                  out_dir=args.out, quiet=args.quiet)
+                                  mzp=args.mzp, out_dir=args.out, quiet=args.quiet)
         print(f"wrote {out}  ({args.nevents} events, {time.time() - t0:.0f} s)", flush=True)
