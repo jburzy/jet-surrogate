@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1] / "analyses"
 
 def test_all_analyses_validate():
     problems = []
-    for path in sorted(p for p in ROOT.iterdir() if p.is_dir()):
+    for path in sorted(p for p in ROOT.iterdir() if p.is_dir() and not p.name.startswith(("_", "."))):
         problems += registry.validate(path)
     assert not problems, "\n".join(problems)
 

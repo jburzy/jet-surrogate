@@ -4,9 +4,12 @@ surrogate model files, a ``README.md`` model card and optional
 ``figures/``. New analyses arrive by pull request; ``validate()`` is what CI
 and the tests run on every record.
 
-A predictor type turns a HepMC file into per-event signal-region
-probabilities; see ``service/predictors/`` for the interface and the
-``jet_surrogate`` implementation.
+A predictor turns a HepMC file into per-event signal-region probabilities.
+The interface lives in ``service/predictors/``; the built-in type is
+``jet_surrogate``. An analysis brings its own predictor as
+``analyses/<id>/predictor.py`` (a registered ``Predictor`` subclass, named
+by ``predictor.type``), keeping analysis-specific code out of the package;
+``requirements`` lists the Python modules it needs.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import numpy as np
 import yaml
 
 REQUIRED = ("id", "title", "short", "experiment", "status", "version", "signal_region", "inputs", "predictor")
+LOCAL_PREDICTOR = "predictor.py"       # optional, next to analysis.yaml: the analysis' own predictor class
 STATUSES = ("example", "preserved", "draft")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
@@ -32,6 +36,10 @@ class Analysis:
     record: dict
     predictor_type: str
     model_path: Path
+    predictor_cls: type | None = None      # resolved at load time (analysis-local predictor.py or built-in)
+
+    def predictor(self, device: str = "cpu"):
+        return self.predictor_cls(self, device)
 
     @property
     def example_path(self) -> Path | None:
@@ -56,7 +64,9 @@ class Analysis:
             "references": list(r.get("references", [])), "validation": list(r.get("validation", [])),
             "figures": [f for f in r.get("figures", []) if (self.path / "figures" / f["file"]).exists()],
             "model": {"type": self.predictor_type, "file": r["predictor"]["model"], "version": str(r["version"]),
-                      "training": r.get("training", "")},
+                      "training": r.get("training", ""),
+                      "local_predictor": (self.path / LOCAL_PREDICTOR).exists(),
+                      "requirements": list(r.get("requirements", []))},
             "contact": r.get("contact", ""),
         })
         return base
@@ -68,6 +78,30 @@ def repo_url() -> str:
 
 def analyses_dir() -> Path:
     return Path(os.environ.get("JS_ANALYSES_DIR", "analyses")).resolve()
+
+
+def local_predictors(path: Path) -> dict[str, type]:
+    """Predictor classes defined in ``<analysis>/predictor.py`` (registered
+    under that module only, so two analyses may use the same type name)."""
+    import importlib.util
+    import inspect
+
+    from .predictors import Predictor
+
+    f = path / LOCAL_PREDICTOR
+    if not f.exists():
+        return {}
+    spec = importlib.util.spec_from_file_location(f"analyses.{path.name.replace('-', '_')}.predictor", f)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return {cls.type_name: cls for _, cls in inspect.getmembers(mod, inspect.isclass)
+            if issubclass(cls, Predictor) and cls is not Predictor and cls.__module__ == mod.__name__}
+
+
+def resolve_predictor(path: Path, record: dict) -> type | None:
+    t = (record.get("predictor") or {}).get("type")
+    local = local_predictors(path) if (path / LOCAL_PREDICTOR).exists() else {}
+    return local.get(t) or PREDICTORS.get(t)
 
 
 def validate(path: Path) -> list[str]:
@@ -90,8 +124,19 @@ def validate(path: Path) -> list[str]:
     if r.get("status") not in STATUSES:
         problems.append(f"{path.name}: status must be one of {STATUSES}")
     pred = r.get("predictor") or {}
-    if pred.get("type") not in PREDICTORS:
-        problems.append(f"{path.name}: predictor.type must be one of {sorted(PREDICTORS)}")
+    try:
+        local = local_predictors(path)
+    except Exception as e:                                   # noqa: BLE001
+        local = {}; problems.append(f"{path.name}: {LOCAL_PREDICTOR} failed to import ({type(e).__name__}: {e})")
+    if pred.get("type") not in local and pred.get("type") not in PREDICTORS:
+        problems.append(f"{path.name}: predictor.type '{pred.get('type')}' is neither defined in {LOCAL_PREDICTOR} "
+                        f"({sorted(local)}) nor a built-in type ({sorted(PREDICTORS)})")
+    for req in r.get("requirements", []):
+        import importlib
+        try:
+            importlib.import_module(req)
+        except ImportError:
+            problems.append(f"{path.name}: requirement '{req}' is not importable (add it to the infer feature of pixi.toml)")
     if not pred.get("model") or not (path / pred["model"]).exists():
         problems.append(f"{path.name}: predictor.model file '{pred.get('model')}' not found")
     if r.get("example") and not (path / r["example"]).exists():
@@ -107,14 +152,15 @@ def validate(path: Path) -> list[str]:
 def load(root: Path | None = None, strict: bool = True) -> dict[str, Analysis]:
     root = root or analyses_dir()
     out = {}
-    for path in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")):
+    for path in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith((".", "_"))):
         problems = validate(path)
         if problems:
             if strict:
                 raise ValueError("\n".join(problems))
             continue
         r = yaml.safe_load((path / "analysis.yaml").read_text())
-        out[path.name] = Analysis(path.name, path, r, r["predictor"]["type"], path / r["predictor"]["model"])
+        out[path.name] = Analysis(path.name, path, r, r["predictor"]["type"], path / r["predictor"]["model"],
+                                  resolve_predictor(path, r))
     return out
 
 

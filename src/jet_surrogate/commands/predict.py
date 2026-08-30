@@ -90,7 +90,7 @@ def run(args) -> None:
         a = registry.load(strict=False).get(args.analysis)
         if a is None:
             raise SystemExit(f"unknown analysis '{args.analysis}' (see analyses/); or pass --model")
-        predictor = registry.PREDICTORS[a.predictor_type](a, device=str(device))
+        predictor = a.predictor(str(device))
         for path in args.hepmc:
             summary, per_event, extras = predictor.run(path, args.max_events or a.record.get("max_events", 10**9),
                                                        progress=lambda m: print(f"  {path.name}: {m}", flush=True))

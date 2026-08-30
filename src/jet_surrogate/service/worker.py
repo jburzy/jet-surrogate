@@ -42,7 +42,7 @@ class Predictors:
             a = self.analyses.get(analysis_id)
             if a is None:
                 raise KeyError(f"unknown analysis '{analysis_id}'")
-            self._cache[analysis_id] = registry.PREDICTORS[a.predictor_type](a, self.device)
+            self._cache[analysis_id] = a.predictor(self.device)
         return self._cache[analysis_id]
 
 

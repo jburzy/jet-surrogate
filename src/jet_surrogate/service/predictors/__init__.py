@@ -12,8 +12,10 @@ the signal region; ``extras`` are optional arrays stored in the result
 HDF5. Use ``finish_summary`` to fill the common fields (histogram,
 threshold variant, analysis and model provenance).
 
-Adding a type: a module in this package with a registered class, plus its
-dependency in the ``infer`` feature of ``pixi.toml``. The HepMC reader
+Adding a type: an analysis ships ``analyses/<id>/predictor.py`` with a
+registered class (the registry loads it for that analysis only), plus any
+dependency in the ``infer`` feature of ``pixi.toml`` and in the record's
+``requirements``. Types meant for many analyses can live in this package. The HepMC reader
 (``jet_surrogate.hepmc_io.read_hepmc``) yields batches with every particle
 of every event (pid, status, mother/daughter links, kinematics, vertices),
 so a predictor is free to select whatever objects and features it needs.
@@ -52,11 +54,14 @@ class Predictor:
         raise NotImplementedError
 
 
-def finish_summary(analysis, summary: dict, per_event: np.ndarray, *, objects: dict | None = None) -> dict:
+def finish_summary(analysis, summary: dict, per_event: np.ndarray, *, objects: dict | None = None,
+                   quantities: list[dict] | None = None) -> dict:
     """Add the fields every result carries: efficiency from the per-event
     probabilities if absent, the hard-threshold variant, a histogram, the
-    analysis and model provenance, and an optional description of the
-    objects the surrogate acted on (``{label, count, mean_probability}``)."""
+    analysis and model provenance, an optional description of the objects
+    the surrogate acted on (``{label, count, mean_probability}``) and
+    optional extra ``quantities`` (``[{name, value, err, unit, note}]``,
+    e.g. a predicted signal-region yield for a given cross section)."""
     p = np.asarray(per_event, dtype=float)
     n = len(p)
     summary.setdefault("n_events", int(n))
@@ -68,6 +73,8 @@ def finish_summary(analysis, summary: dict, per_event: np.ndarray, *, objects: d
     summary["histogram"] = {"edges": edges.round(4).tolist(), "counts": counts.tolist()}
     if objects is not None:
         summary["objects"] = objects
+    if quantities:
+        summary["quantities"] = list(quantities)
     summary.update({"analysis": analysis.id, "version": str(analysis.record["version"]),
                     "model": analysis.record["predictor"]["model"], "predictor_type": analysis.predictor_type})
     missing = [k for k in REQUIRED_SUMMARY if k not in summary]

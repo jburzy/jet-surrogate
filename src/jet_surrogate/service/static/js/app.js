@@ -50,6 +50,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
   }
 
   const fmt = {
+  num(v) { if (v == null || isNaN(v)) return '?'; const a = Math.abs(v); return a >= 1000 ? Math.round(v).toLocaleString() : a >= 10 ? v.toFixed(1) : v.toFixed(3); },
     bytes(n) {
       if (!(n >= 0)) return '';
       const units = ['B', 'kB', 'MB', 'GB', 'TB'];
@@ -384,6 +385,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       (r.objects ? '<div class="stat"><span class="stat__label">' + esc(cap(r.objects.label || 'objects')) + '</span><span class="stat__value">' + esc(fmt.int(r.objects.count)) + '</span></div>' +
         (r.objects.mean_probability != null ? '<div class="stat"><span class="stat__label">Mean probability per ' + esc(singular(r.objects.label || 'object')) + '</span><span class="stat__value">' + esc(fmt.prob(r.objects.mean_probability)) + '</span></div>' : '')
        : (r.n_truth_jets != null ? '<div class="stat"><span class="stat__label">Truth jets</span><span class="stat__value">' + esc(fmt.int(r.n_truth_jets)) + '</span></div>' : '')) +
+      (r.quantities || []).map(q => '<div class="stat"><span class="stat__label">' + esc(cap(q.name)) + (q.note ? ' <span class="muted">(' + esc(q.note) + ')</span>' : '') + '</span><span class="stat__value">' + esc(fmt.num(q.value)) + (q.err != null ? '<span class="stat__err">± ' + esc(fmt.num(q.err)) + '</span>' : '') + (q.unit ? ' <span class="muted">' + esc(q.unit) + '</span>' : '') + '</span></div>').join('') +
       (r.sr_efficiency_threshold05 != null && r.objects ? '<div class="stat"><span class="stat__label">Efficiency counting ' + esc(r.objects.label || 'objects') + ' at p &gt; 0.5</span><span class="stat__value">' + esc(Number(r.sr_efficiency_threshold05).toFixed(fmt.effDigits(r.sr_efficiency_err))) + '</span></div>' : '') +
       '</div>' +
       '<p class="muted small" style="margin:0">Surrogate ' + esc(r.model || a.model && a.model.file || '') + (r.version ? ', version ' + esc(r.version) : '') + '</p>' +
