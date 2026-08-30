@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Submit · PRISM</title>
+  <meta name="description" content="Upload a HepMC file of your signal model and get the predicted signal-region efficiency.">
+  <meta property="og:title" content="Submit · PRISM">
+  <meta property="og:site_name" content="PRISM">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://1.www.s81c.com" crossorigin>
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/plex/sans.css">
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/plex/mono.css">
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/web-components/tag/v2/latest/themes.css">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <script src="js/app.js" defer></script>
+</head>
+<body class="cds-theme-zone-white" data-page="submit">
+  <script>
+    /* Theme: follow the browser/system preference, with a manual override
+       stored in localStorage (set by the header toggle) */
+    (function () {
+      var m = window.matchMedia('(prefers-color-scheme: dark)');
+      function current() {
+        var stored = null;
+        try { stored = localStorage.getItem('theme'); } catch (e) {}
+        return stored || (m.matches ? 'dark' : 'light');
+      }
+      function apply() {
+        document.body.className = current() === 'dark' ? 'cds-theme-zone-g100' : 'cds-theme-zone-white';
+      }
+      apply();
+      m.addEventListener('change', apply);
+      document.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('.theme-toggle')) {
+          var next = current() === 'dark' ? 'light' : 'dark';
+          try { localStorage.setItem('theme', next); } catch (e2) {}
+          apply();
+        }
+      });
+    })();
+  </script>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner container">
+      <a class="site-header__name" href="index.html">PRISM</a>
+      <nav class="site-header__nav" aria-label="Site">
+        <a href="index.html">Home</a>
+        <a href="analyses.html">Analyses</a>
+        <a href="submit.html" aria-current="page">Submit</a>
+        <a href="jobs.html">Jobs</a>
+        <a href="contribute.html">Contribute</a>
+        <a href="api.html">API</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Toggle light and dark mode">
+        <svg class="icon-moon" viewBox="0 0 32 32" aria-hidden="true"><path d="M13.502 5.414a15.075 15.075 0 0 0 11.594 18.194 11.113 11.113 0 0 1-7.975 3.39c-.138 0-.278.005-.418 0a11.094 11.094 0 0 1-3.2-21.584M14.98 3a1.002 1.002 0 0 0-.175.016 13.096 13.096 0 0 0 1.825 25.981c.164.006.328 0 .49 0a13.072 13.072 0 0 0 10.703-5.555 1.01 1.01 0 0 0-.783-1.565A13.08 13.08 0 0 1 15.89 4.38 1.015 1.015 0 0 0 14.98 3Z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 12.005a4 4 0 1 1-4 4 4.005 4.005 0 0 1 4-4m0-2a6 6 0 1 0 6 6 6 6 0 0 0-6-6ZM5.394 6.813 6.81 5.399l3.505 3.506L8.9 10.319zM2 15.005h5v2H2zm3.394 10.193L8.9 21.692l1.414 1.414-3.505 3.506zM15 25.005h2v5h-2zm6.687-1.9 1.414-1.414 3.506 3.506-1.414 1.414zm3.313-8.1h5v2h-5zm-3.313-6.101 3.506-3.506 1.414 1.414-3.506 3.506zM15 2.005h2v5h-2z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+
+      <div class="page-head">
+        <h1 class="page-title">Submit a model</h1>
+        <p class="page-subtitle">
+          Choose an analysis, upload a HepMC file of your signal model and we
+          return the predicted signal-region efficiency.
+        </p>
+      </div>
+
+      <section class="section section--first">
+        <h2>Your submission</h2>
+        <p class="section__rail-note">Files up to <span data-info-max-upload>2 GB</span>. Uploads show progress, and jobs keep running if you close the page.</p>
+        <div class="section__body">
+          <form class="form" id="submit-form" novalidate>
+            <div class="field">
+              <label for="analysis">Analysis</label>
+              <select id="analysis" name="analysis" required>
+                <option value="">Loading analyses</option>
+              </select>
+              <p class="field__help" id="analysis-help"></p>
+              <p class="field__help"><a id="analysis-link" href="analyses.html" hidden>About this analysis and its validation</a></p>
+            </div>
+
+            <div class="field">
+              <span class="field__label" id="file-label">HepMC file</span>
+              <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-labelledby="file-label" aria-describedby="file-hint">
+                <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 18H4v8a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-8h-2v8H6z"/><path d="M15 4.41V22h2V4.41l5.29 5.3L23.7 8.3 16 .59 8.3 8.3l1.41 1.41z"/></svg>
+                <span>Drag a file here or click to choose one</span>
+                <p class="dropzone__hint" id="file-hint">HepMC2 or HepMC3 ASCII: .hepmc, .hepmc3, .hepmc2g or .gz</p>
+              </div>
+              <input class="visually-hidden" type="file" id="file-input" name="file" accept=".hepmc,.hepmc3,.hepmc2g,.gz" tabindex="-1" aria-hidden="true">
+              <div id="file-info"></div>
+            </div>
+
+            <div class="field">
+              <label for="label">Model description (optional)</label>
+              <input type="text" id="label" name="label" maxlength="200" placeholder="for example: m = 8 GeV, ctau = 0.3 mm" autocomplete="off">
+              <p class="field__help">Shown in the job list so you can find this result again.</p>
+            </div>
+
+            <div class="field field--narrow">
+              <label for="max-events">Maximum events</label>
+              <input type="number" id="max-events" name="max_events" min="1" step="1" inputmode="numeric">
+              <p class="field__help" id="max-events-help"></p>
+            </div>
+
+            <div class="btn-row" style="margin-top:0.5rem">
+              <button class="btn btn--primary" type="submit" id="submit-btn">Submit</button>
+            </div>
+          </form>
+
+          <div class="progress" id="upload-progress" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+            <div class="progress__label"><span>Uploading</span><span class="progress__value">0 %</span></div>
+            <div class="progress__track"><div class="progress__bar"></div></div>
+          </div>
+
+          <div id="notifications" aria-live="assertive"></div>
+          <div id="job-slot" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>What you get</h2>
+        <div class="section__body">
+          <p>
+            The <strong>signal-region efficiency</strong> is the predicted fraction
+            of your events that would pass the selection of the chosen analysis.
+            Its definition is set by the analysis:
+          </p>
+          <p id="signal-region" class="muted">Pick an analysis to see its signal-region definition.</p>
+          <p>
+            You also get the statistical uncertainty on that fraction, the number
+            of events and truth jets used, the mean per-jet probability, a
+            histogram of the per-event probabilities and an HDF5 file with the
+            per-event values for your own limit setting. The uncertainty covers
+            the size of your sample only. How well the surrogate reproduces the
+            full analysis is documented on each analysis page.
+          </p>
+          <h4>What the file needs to contain</h4>
+          <ul id="inputs-list"></ul>
+          <p class="muted small">
+            Your file is stored only for as long as the job needs it and the
+            results stay available through the permalink. Do not upload data
+            you are not allowed to share with the service operators.
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner container">
+      <span><strong>PRISM</strong> <span data-info-version></span> · <span data-info-tagline>Physics Reinterpretation with Intelligent Surrogate Models</span></span>
+      <span class="site-footer__links">
+        <a href="https://github.com/jburzy/jet-surrogate" rel="noopener" data-info-repo>Source on GitHub</a>
+        <a href="/docs">API docs</a>
+        <a href="contribute.html">Add an analysis</a>
+      </span>
+    </div>
+  </footer>
+</body>
+</html>

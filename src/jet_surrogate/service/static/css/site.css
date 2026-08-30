@@ -1,4 +1,4 @@
-/* Surrogate reinterpretation service. Carbon Design System.
+/* PRISM (Physics Reinterpretation with Intelligent Surrogate Models). Carbon Design System.
    Tokens come from Carbon's themes.css (cds-theme-zone-white or
    cds-theme-zone-g100 on <body>). Layout: 99rem max container, section
    heading rail on the left at desktop widths. Breakpoints 42rem and 66rem. */
@@ -64,6 +64,10 @@ textarea:focus-visible,
 img {
   max-width: 100%;
   height: auto;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 .visually-hidden {
@@ -700,6 +704,7 @@ pre code {
 }
 
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 14rem;
@@ -736,10 +741,6 @@ pre code {
   content: '';
   position: absolute;
   inset: 0;
-}
-
-.card {
-  position: relative;
 }
 
 .card p {
@@ -1304,10 +1305,12 @@ table.data td.nowrap {
   gap: 0.375rem;
 }
 
-.result__links svg {
+.result__links svg,
+.status-panel a svg {
   width: 1rem;
   height: 1rem;
   fill: currentColor;
+  vertical-align: -0.125rem;
 }
 
 /* ---------- Histogram (inline SVG) ---------- */

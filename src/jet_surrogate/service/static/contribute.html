@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Contribute · PRISM</title>
+  <meta name="description" content="How to add a preserved analysis and its surrogate to PRISM by pull request.">
+  <meta property="og:title" content="Contribute · PRISM">
+  <meta property="og:site_name" content="PRISM">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://1.www.s81c.com" crossorigin>
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/plex/sans.css">
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/plex/mono.css">
+  <link rel="stylesheet" href="https://1.www.s81c.com/common/carbon/web-components/tag/v2/latest/themes.css">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <script src="js/app.js" defer></script>
+</head>
+<body class="cds-theme-zone-white" data-page="contribute">
+  <script>
+    /* Theme: follow the browser/system preference, with a manual override
+       stored in localStorage (set by the header toggle) */
+    (function () {
+      var m = window.matchMedia('(prefers-color-scheme: dark)');
+      function current() {
+        var stored = null;
+        try { stored = localStorage.getItem('theme'); } catch (e) {}
+        return stored || (m.matches ? 'dark' : 'light');
+      }
+      function apply() {
+        document.body.className = current() === 'dark' ? 'cds-theme-zone-g100' : 'cds-theme-zone-white';
+      }
+      apply();
+      m.addEventListener('change', apply);
+      document.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('.theme-toggle')) {
+          var next = current() === 'dark' ? 'light' : 'dark';
+          try { localStorage.setItem('theme', next); } catch (e2) {}
+          apply();
+        }
+      });
+    })();
+  </script>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner container">
+      <a class="site-header__name" href="index.html">PRISM</a>
+      <nav class="site-header__nav" aria-label="Site">
+        <a href="index.html">Home</a>
+        <a href="analyses.html">Analyses</a>
+        <a href="submit.html">Submit</a>
+        <a href="jobs.html">Jobs</a>
+        <a href="contribute.html" aria-current="page">Contribute</a>
+        <a href="api.html">API</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Toggle light and dark mode">
+        <svg class="icon-moon" viewBox="0 0 32 32" aria-hidden="true"><path d="M13.502 5.414a15.075 15.075 0 0 0 11.594 18.194 11.113 11.113 0 0 1-7.975 3.39c-.138 0-.278.005-.418 0a11.094 11.094 0 0 1-3.2-21.584M14.98 3a1.002 1.002 0 0 0-.175.016 13.096 13.096 0 0 0 1.825 25.981c.164.006.328 0 .49 0a13.072 13.072 0 0 0 10.703-5.555 1.01 1.01 0 0 0-.783-1.565A13.08 13.08 0 0 1 15.89 4.38 1.015 1.015 0 0 0 14.98 3Z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 12.005a4 4 0 1 1-4 4 4.005 4.005 0 0 1 4-4m0-2a6 6 0 1 0 6 6 6 6 0 0 0-6-6ZM5.394 6.813 6.81 5.399l3.505 3.506L8.9 10.319zM2 15.005h5v2H2zm3.394 10.193L8.9 21.692l1.414 1.414-3.505 3.506zM15 25.005h2v5h-2zm6.687-1.9 1.414-1.414 3.506 3.506-1.414 1.414zm3.313-8.1h5v2h-5zm-3.313-6.101 3.506-3.506 1.414 1.414-3.506 3.506zM15 2.005h2v5h-2z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container">
+
+      <div class="page-head">
+        <h1 class="page-title">Contribute an analysis</h1>
+        <p class="page-subtitle">
+          Analyses are added to our library by pull request. Bring the record,
+          the surrogate model files, a model card and your validation figures.
+        </p>
+      </div>
+
+      <section class="section section--first">
+        <h2>Before you start</h2>
+        <div class="section__body">
+          <p>
+            A contribution is a surrogate for one preserved analysis: a model that
+            takes generator-level events and predicts whether the analysis would
+            select them. The surrogate must use a predictor type that the service
+            knows how to run (the first is <code>jet_surrogate</code>, a per-jet
+            classifier on truth-jet constituents). If your analysis needs a new
+            predictor type, open an issue first so we can add it to the runner
+            alongside your analysis.
+          </p>
+          <p>
+            Please make sure the model files and validation figures are approved
+            for public release by your collaboration before opening the pull
+            request.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Steps</h2>
+        <div class="section__body">
+          <ol>
+            <li>Fork <a href="https://github.com/jburzy/jet-surrogate" rel="noopener" data-info-repo>the repository</a> and create a directory <code>analyses/&lt;analysis-id&gt;/</code>. The id is lowercase with hyphens and becomes the URL of the analysis page.</li>
+            <li>Add <code>analysis.yaml</code> following the schema below. The <code>signal_region</code> text is shown next to every result, so describe the selection precisely.</li>
+            <li>Add the surrogate model files named in the record.</li>
+            <li>Write <code>README.md</code>, the model card: what the analysis selects, which samples the surrogate was trained on, how it was validated and where it should not be trusted.</li>
+            <li>Put validation figures in <code>figures/</code> (PNG) and list them in the record with captions. Optional <code>validation</code> rows become a table on the analysis page.</li>
+            <li>Open a pull request. Our CI validates the record and checks that the model loads. A maintainer reviews the model card and validation and merges. The analysis appears in the library on the next deployment.</li>
+          </ol>
+          <h4>Directory layout</h4>
+          <pre><code>analyses/
+  my-analysis-id/
+    analysis.yaml        # the record (schema below)
+    README.md            # model card: what the analysis selects, how the surrogate was trained and validated, known limits
+    surrogate.pt         # model file(s) named in the record
+    figures/
+      sr_efficiency_m5.png
+      closure_probability.png</code></pre>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Record schema</h2>
+        <p class="section__rail-note"><code>analysis.yaml</code></p>
+        <div class="section__body">
+          <pre><code>id: my-analysis-id            # directory name, lowercase, hyphens
+title: Search for ...
+short: one-line description
+experiment: ATLAS | CMS | LHCb | other
+status: example | preserved
+version: &quot;1.0&quot;
+updated: 2026-08-29
+contact: name &lt;email&gt;
+references:
+  - {label: &quot;arXiv:2505.02429&quot;, url: &quot;https://arxiv.org/abs/2505.02429&quot;}
+signal_region: text describing the selection the efficiency refers to
+inputs:
+  - HepMC2 or HepMC3 ASCII, generator level, ...
+predictor:
+  type: jet_surrogate            # a registered predictor type
+  model: surrogate.pt
+default_max_events: 20000
+max_events: 50000
+validation:                      # optional table rows shown on the analysis page
+  - {sample: &quot;...&quot;, actual: 0.43, predicted: 0.38}
+figures:                         # optional, files in figures/
+  - {file: sr_efficiency_m5.png, caption: &quot;...&quot;}</code></pre>
+          <p>
+            <code>default_max_events</code> pre-fills the submission form and
+            <code>max_events</code> caps what a single job may process. Choose
+            them so a job finishes in minutes on our worker. Bump
+            <code>version</code> and <code>updated</code> whenever the model or
+            the record changes, since both are shown with every result.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Questions</h2>
+        <div class="section__body">
+          <p>
+            Open an issue on GitHub or contact the maintainers listed in the
+            repository. We are happy to help wire up a new predictor type.
+          </p>
+          <div class="btn-row">
+            <a class="btn btn--tertiary" href="https://github.com/jburzy/jet-surrogate" rel="noopener" data-info-repo>Repository on GitHub</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner container">
+      <span><strong>PRISM</strong> <span data-info-version></span> · <span data-info-tagline>Physics Reinterpretation with Intelligent Surrogate Models</span></span>
+      <span class="site-footer__links">
+        <a href="https://github.com/jburzy/jet-surrogate" rel="noopener" data-info-repo>Source on GitHub</a>
+        <a href="/docs">API docs</a>
+        <a href="contribute.html">Add an analysis</a>
+      </span>
+    </div>
+  </footer>
+</body>
+</html>
