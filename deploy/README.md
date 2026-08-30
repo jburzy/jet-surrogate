@@ -11,8 +11,10 @@ one directory per job. Configuration is the `ConfigMap` (`JS_*` variables).
 1. paas.cern.ch: the project `prism` (done). Creating the project also
    registers the site `prism.web.cern.ch`; it appears under "My websites"
    on webservices.web.cern.ch, where visibility (internet or CERN only)
-   and SSO are set. Request a quota of at least 4 CPU, 12 GiB memory and
-   50 GiB storage if the default is smaller (2 workers + web + headroom).
+   and SSO are set. The default quota is 1 CPU of requests, which fits the web pod
+   (250m) plus one worker (500m). Request more (4 CPU, 12 GiB) through
+   Service Now to run several workers, then raise `replicas` and the
+   worker requests in `deploy/paas/deployment-worker.yaml`.
 2. Access: start open (upload and event limits, TTL); CERN SSO can be
    enabled later on the site record.
 3. Image: the GitHub workflow `build-image` publishes

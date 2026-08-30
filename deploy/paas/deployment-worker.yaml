@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: jet-surrogate-worker
 spec:
-  replicas: 2                        # one job per worker at a time; scale with the quota
+  replicas: 1                        # one job per worker at a time; the default project quota is 1 CPU of requests in total
   selector:
     matchLabels: {component: worker}
   template:
@@ -17,8 +17,8 @@ spec:
           envFrom: [{configMapRef: {name: jet-surrogate-config}}]
           volumeMounts: [{name: data, mountPath: /data}]
           resources:
-            requests: {cpu: "1", memory: 3Gi}
-            limits: {cpu: "2", memory: 6Gi}
+            requests: {cpu: 500m, memory: 2Gi}
+            limits: {cpu: "1", memory: 4Gi}
       volumes:
         - name: data
           persistentVolumeClaim: {claimName: jet-surrogate-data}

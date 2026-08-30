@@ -15,6 +15,9 @@ spec:
               args: ["worker", "--cleanup-only"]
               envFrom: [{configMapRef: {name: jet-surrogate-config}}]
               volumeMounts: [{name: data, mountPath: /data}]
+              resources:
+                requests: {cpu: 100m, memory: 256Mi}
+                limits: {cpu: 500m, memory: 1Gi}
           volumes:
             - name: data
               persistentVolumeClaim: {claimName: jet-surrogate-data}
