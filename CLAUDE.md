@@ -301,6 +301,18 @@ Preview chain with the preliminary tagger, isolated outputs:
 
 ## Reinterpretation service
 
+**Analysis library** (author's design, 2026-08-29): the site is a library
+of preserved analyses, each with its own surrogate, added by PR. Records
+live in `analyses/<id>/analysis.yaml` (+ model files, README.md model
+card, figures/); `service/registry.py` validates and loads them and maps
+`predictor.type` to a class (`PREDICTORS`, only `jet_surrogate` so far);
+the worker caches one predictor per analysis; `predict --analysis` uses the
+same registry. Nothing in the service or front end is specific to the
+emerging-jets surrogate, which is the example entry `emerging-jets-delphes`.
+`tests/test_registry.py` + `.github/workflows/validate-analyses.yml` gate
+PRs. Front end: IBM Carbon (IBM CDN only), conventions copied from the
+author's site `jburzy.github.io` (`service/static/`).
+
 Proof of concept (2026-08-29): `Dockerfile` (pixi `infer` env: pythia8 for the
 particle table, hepmc3, fastjet, awkward, torch; 2 GB, no Delphes/ROOT/
 Lightning) + `models/release/` (versioned surrogate, `MODEL.md`) +

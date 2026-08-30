@@ -4,7 +4,7 @@ metadata:
   name: jet-surrogate-config
 data:
   JS_SERVICE_DIR: /data
-  JS_MODEL: /app/models/release/surrogate.pt
+  JS_ANALYSES_DIR: /app/analyses
   JS_MAX_UPLOAD_MB: "2000"
   JS_MAX_EVENTS: "20000"
   JS_JOB_TTL_HOURS: "72"

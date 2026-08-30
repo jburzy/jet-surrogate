@@ -26,6 +26,9 @@ jobs:
             const url = field("HepMC file URL");
             if (!url.startsWith("http")) core.setFailed("no HepMC URL in the issue");
             core.setOutput("url", url);
+            const analysis = field("Analysis id") || "emerging-jets-delphes";
+            if (!/^[a-z0-9-]+$/.test(analysis)) core.setFailed("invalid analysis id");
+            core.setOutput("analysis", analysis);
             core.setOutput("label", field("Model description \\(optional\\)"));
             const n = field("Maximum number of events to process \\(optional, default 20000\\)");
             core.setOutput("max_events", /^\d+$/.test(n) ? n : "20000");
@@ -38,7 +41,7 @@ jobs:
       - name: predict
         run: |
           source /app/activate.sh
-          cd /app && jet-surrogate predict --hepmc /work/events.hepmc --model models/release/surrogate.pt \
+          cd /app && jet-surrogate predict --hepmc /work/events.hepmc --analysis ${{ steps.req.outputs.analysis }} \
               --out /work/results --max-events ${{ steps.req.outputs.max_events }} | tee /work/predict.log
       - name: report
         if: always()
@@ -54,7 +57,7 @@ jobs:
                 `| ${j.n_events} | ${j.n_truth_jets} | **${j.sr_efficiency.toFixed(4)} ± ${j.sr_efficiency_err.toFixed(4)}** | ` +
                 `${j.sr_efficiency_threshold05.toFixed(4)} | ${j.mean_jet_probability.toFixed(4)} |\n\n` +
                 `Signal region: two large-R jets with pT > 200 GeV above the tagger working point (10^3 QCD rejection). ` +
-                `Model: \`${j.model}\`, code: ${context.sha.slice(0, 7)}. Per-event probabilities are attached as a workflow artifact ` +
+                `Analysis: \`${j.analysis}\`, model: \`${j.model}\`, code: ${context.sha.slice(0, 7)}. Per-event probabilities are attached as a workflow artifact ` +
                 `([run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})).`;
             } catch (e) {
               body = `The reinterpretation workflow failed: see the [run log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`;

@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# oc login <cluster> && oc project jet-surrogate && oc apply -k deploy/paas
+# oc login <cluster> && oc project prism && oc apply -k deploy/paas
 resources:
   - configmap.yaml
   - pvc.yaml

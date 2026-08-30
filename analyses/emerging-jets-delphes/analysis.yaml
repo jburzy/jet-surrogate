@@ -1,0 +1,43 @@
+id: emerging-jets-delphes
+title: Emerging jets with a track transformer tagger (Delphes ATLAS example)
+short: Two large-radius jets tagged by a transformer on reconstructed tracks, in an ATLAS-like Delphes simulation. The example analysis of the surrogate method paper.
+experiment: ATLAS-like (Delphes)
+status: example
+version: "0.2"
+updated: 2026-08-29
+contact: Jackson Burzynski <burzynski@ou.edu>
+tags: [dark showers, emerging jets, long-lived particles, transformer tagger]
+references:
+  - {label: "ATLAS emerging jets search (arXiv:2505.02429)", url: "https://arxiv.org/abs/2505.02429"}
+  - {label: "Emerging jets (Schwaller, Stolarski, Weiler)", url: "https://arxiv.org/abs/1502.05409"}
+  - {label: "Dark showers Snowmass report", url: "https://arxiv.org/abs/2203.09503"}
+signal_region: >-
+  At least two anti-kt R = 1.0 jets, reclustered from R = 0.4 particle-flow jets, with pT > 200 GeV and
+  |eta| < 2.0, each above the working point of a transformer tagger acting on the reconstructed tracks
+  inside the jet. The working point corresponds to a QCD jet rejection of 1000. The returned number is the
+  fraction of events entering this signal region.
+inputs:
+  - HepMC2 or HepMC3 ASCII (optionally gzipped), pp collisions at 13.6 TeV, generator level with the full decay chain and production vertices in mm or cm.
+  - Long-lived particles must be decayed by the generator (their decay products and vertices are what the surrogate reads).
+  - Hadronization and decays switched on. No detector simulation.
+predictor:
+  type: jet_surrogate
+  model: surrogate.pt
+default_max_events: 20000
+max_events: 50000
+training: >-
+  Trained on 1.2M Pythia 8.312 Hidden Valley events (Z' at 1.5 TeV to dark quarks, m(pi_d) = 5 GeV,
+  c-tau = 0.01 to 5 mm) on generator seeds disjoint from those used for the tagger. Labels are the decisions of the
+  tagger applied to Delphes tracks with ATLAS impact-parameter resolutions.
+validation:
+  - {sample: "m(pi_d) = 5 GeV, ctau = 0.1 mm (test seeds)", actual: 0.431, predicted: 0.384}
+  - {sample: "m(pi_d) = 5 GeV, ctau = 1 mm (test seeds)", actual: 0.545, predicted: 0.516}
+  - {sample: "m(pi_d) = 10 GeV, ctau = 0.1 mm (unseen)", actual: 0.442, predicted: 0.304}
+  - {sample: "m(pi_d) = 2 GeV, ctau = 0.1 mm (unseen)", actual: 0.356, predicted: 0.456}
+figures:
+  - {file: sr_efficiency_m5.png, caption: "Signal-region efficiency versus dark-pion lifetime for the training model on held-out events, detector level versus surrogate."}
+  - {file: sr_efficiency_m10.png, caption: "The same for a dark-pion mass of 10 GeV, never seen in training."}
+  - {file: sr_efficiency_m2.png, caption: "The same for a dark-pion mass of 2 GeV, never seen in training."}
+  - {file: sr_efficiency_scan_lambda.png, caption: "Dependence on the dark-sector confinement scale at fixed mass and lifetime."}
+  - {file: calibration_m5.png, caption: "Per-jet calibration of the surrogate probability on the training model."}
+  - {file: tagger_roc.png, caption: "The detector-level tagger the surrogate approximates: QCD rejection versus signal efficiency."}

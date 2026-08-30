@@ -90,6 +90,7 @@ fastapi = "*"
 uvicorn = "*"
 python-multipart = "*"
 httpx = "*"                  # API tests
+markdown = "*"               # analysis README rendering
 pytest = "*"
 [feature.infer.tasks]
 test-service = "pytest tests/test_service.py -v"     # pixi run -e infer test-service

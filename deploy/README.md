@@ -8,11 +8,13 @@ one directory per job. Configuration is the `ConfigMap` (`JS_*` variables).
 
 ## One-time setup (CERN account required)
 
-1. paas.cern.ch: create the project `jet-surrogate`; request a quota of at
-   least 4 CPU, 12 GiB memory, 50 GiB storage (2 workers + web + headroom).
-2. webservices.web.cern.ch: register the site `jet-surrogate.web.cern.ch`,
-   type PaaS, linked to the project, visibility internet (or CERN only).
-   Decide on access: open with the upload and event limits, or CERN SSO.
+1. paas.cern.ch: the project `prism` (done). Creating the project also
+   registers the site `prism.web.cern.ch`; it appears under "My websites"
+   on webservices.web.cern.ch, where visibility (internet or CERN only)
+   and SSO are set. Request a quota of at least 4 CPU, 12 GiB memory and
+   50 GiB storage if the default is smaller (2 workers + web + headroom).
+2. Access: start open (upload and event limits, TTL); CERN SSO can be
+   enabled later on the site record.
 3. Image: the GitHub workflow `build-image` publishes
    `ghcr.io/jburzy/jet-surrogate:latest` on every push to `main` touching
    the code or the model. Make the package public, or create a pull secret
@@ -24,7 +26,7 @@ one directory per job. Configuration is the `ConfigMap` (`JS_*` variables).
 
 ```bash
 oc login --token=... --server=https://api.paas.okd.cern.ch:443
-oc project jet-surrogate
+oc project prism
 oc apply -k deploy/paas
 oc get pods; oc logs deploy/jet-surrogate-worker -f
 oc rollout restart deploy/jet-surrogate-web deploy/jet-surrogate-worker   # after a new image

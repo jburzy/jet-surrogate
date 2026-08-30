@@ -179,35 +179,43 @@ with its uncertainty) and an HDF5 with the per-event probabilities.
 `export-hepmc` dumps the generator record of a Delphes file to HepMC3 for
 cross-checks (the HepMC and Delphes paths agree to 2e-7 per jet).
 
-## Reinterpretation service (proof of concept, GitHub issues)
+## The analysis library and the web service
 
-Open an issue with the *Reinterpretation request* template and a public URL
-to a HepMC file: the `reinterpret` workflow runs `jet-surrogate predict` in
-the inference container (`ghcr.io/<owner>/jet-surrogate`, built by the
-`build-image` workflow from `Dockerfile` and the `infer` pixi environment
-with the model in `models/release/`) and posts the signal-region efficiency
-as a comment, with the per-event probabilities as an artifact. The same
-container and command back the planned OSCER/OURcloud service.
+The service hosts a library of preserved analyses, one directory each under
+`analyses/`, added by pull request:
 
-To enable it on a fresh GitHub repository: push `main`, let `build-image`
-publish the package once (Settings -> Packages: make it public, or grant the
-repo read access), and apply the `reinterpret` label to issues you want
-processed (the template applies it automatically).
+```
+analyses/<analysis-id>/
+  analysis.yaml       title, experiment, status, signal-region definition, inputs, predictor, limits, figures
+  surrogate.pt        the surrogate model (+ .onnx and preprocessor JSON)
+  README.md           model card shown on the analysis page
+  figures/*.png       validation figures shown on the analysis page
+```
 
-## Web service
+`tests/test_registry.py` (run by the `validate-analyses` workflow on every
+PR) checks each record. Predictor types are registered in
+`service/registry.py`; `jet_surrogate` (truth jets, per-jet probability,
+Poisson-binomial event probability) is the first, and the example analysis
+`emerging-jets-delphes` is the surrogate built in this repository.
 
 ```bash
 pixi install -e infer
-pixi run -e infer serve                 # http://localhost:8080, upload page + JSON API (POST /jobs, GET /jobs/<id>)
-pixi run -e infer worker                # in a second shell: runs queued jobs with the released surrogate
+pixi run -e infer serve                 # http://localhost:8080: Carbon front end + JSON API (/api, /docs)
+pixi run -e infer worker                # second shell: runs queued jobs
 pixi run -e infer test-service          # end-to-end test on a tiny Pythia sample
+jet-surrogate predict --hepmc events.hepmc --analysis emerging-jets-delphes   # the same, from the command line
 ```
 
 Jobs are queued in `JS_SERVICE_DIR` (SQLite + one directory per job) and
 executed by any number of workers; uploads are deleted after processing and
-results expire (`JS_JOB_TTL_HOURS`). `Dockerfile` packages the same three
-roles; `deploy/paas/` holds the OpenShift manifests and `deploy/README.md`
-the CERN PaaS deployment steps.
+results expire (`JS_JOB_TTL_HOURS`). The front end (`service/static/`, IBM
+Carbon, no build step) has pages for the library, each analysis, submission
+with upload progress, job status and results, contribution instructions and
+the API. `Dockerfile` packages everything; `deploy/paas/` holds the
+OpenShift manifests and `deploy/README.md` the CERN PaaS steps. GitHub
+issues opened with the *Reinterpretation request* template are processed by
+the `reinterpret` workflow with the same container (a zero-infrastructure
+fallback).
 
 ## Layout
 
@@ -224,13 +232,14 @@ src/jet_surrogate/
   features.py                 track / particle feature tables, padding, transforms
   skim.py                     ROOT -> HDF5 per-jet tables (skim_truth: the generator-only half)
   hepmc_io.py                 HepMC2/3 reader, HepMC3 writer (predict, export-hepmc, generate --format hepmc)
-  service/                    web service: FastAPI app, SQLite job store, worker
+  service/                    web service: registry of analyses, FastAPI app, SQLite job store, worker, static front end
   data.py                     skim discovery, seed splits, in-memory tables
   models.py, training.py      transformer, preprocessing, inference checkpoints, ONNX export
   lightning/                  Lightning data module, module, callbacks, CLI (training)
   configs/                    tagger.yaml, surrogate.yaml
   metrics.py                  working points, Poisson-binomial SR efficiency
 slurm/                        generation arrays, GPU wrapper, ML dependency chain, re-skim, status, tools/
+analyses/                     the analysis library (one directory per preserved analysis)
 paper/                        JHEP-style draft (pixi run paper)
 deploy/paas/                  OpenShift manifests for CERN PaaS (deploy/README.md)
 Dockerfile, .github/          inference image, issue-driven reinterpretation workflow

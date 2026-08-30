@@ -5,9 +5,9 @@ data
 data/
 logs/
 .cometml-runs/
-# trained models (the released surrogate is versioned)
-models/*
-!models/release/
+# trained models (released surrogates live in analyses/<id>/, which is versioned including figures)
+models/
+!analyses/**
 # results, figures and rendered documents
 results/
 results_*/

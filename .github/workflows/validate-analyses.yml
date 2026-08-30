@@ -1,0 +1,17 @@
+name: validate analyses
+on:
+  pull_request:
+    paths: ["analyses/**", "src/jet_surrogate/service/registry.py"]
+  push:
+    branches: [main]
+    paths: ["analyses/**"]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          environments: infer
+          cache: true
+      - run: pixi run -e infer pytest tests/test_registry.py -v

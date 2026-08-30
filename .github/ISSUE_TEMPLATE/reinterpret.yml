@@ -10,6 +10,14 @@ body:
         of your signal model (generator-level, no detector simulation). A workflow downloads the file, runs the
         truth-level surrogate, and posts the predicted signal-region efficiency as a comment on this issue.
   - type: input
+    id: analysis
+    attributes:
+      label: Analysis id
+      description: directory name under analyses/ (see the Analyses page)
+      value: emerging-jets-delphes
+    validations:
+      required: true
+  - type: input
     id: hepmc_url
     attributes:
       label: HepMC file URL

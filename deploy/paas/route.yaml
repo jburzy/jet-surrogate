@@ -5,7 +5,7 @@ metadata:
   annotations:
     haproxy.router.openshift.io/timeout: 600s     # large uploads
 spec:
-  host: jet-surrogate.web.cern.ch                # the site name registered at webservices.web.cern.ch
+  host: prism.web.cern.ch                # the site name registered at webservices.web.cern.ch
   to: {kind: Service, name: jet-surrogate}
   port: {targetPort: 8080}
   tls: {termination: edge, insecureEdgeTerminationPolicy: Redirect}

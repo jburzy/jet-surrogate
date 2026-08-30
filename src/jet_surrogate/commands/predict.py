@@ -1,7 +1,7 @@
 """Predict the signal-region efficiency of a new model from generator truth.
 
-    jet-surrogate predict --hepmc events.hepmc [more.hepmc ...] [--model models/surrogate/surrogate.pt]
-    jet-surrogate predict --skim data/skim/signal_m10_ctau0.1mm_seed1.h5
+    jet-surrogate predict --hepmc events.hepmc [more.hepmc ...] [--analysis emerging-jets-delphes]
+    jet-surrogate predict --skim data/skim/signal_m10_ctau0.1mm_seed1.h5 --model models/surrogate/surrogate.pt
 
 This is the reinterpretation entry point: no detector simulation, no tagger.
 Generator particles (HepMC2/3, or the truth tables of an existing skim) are
@@ -28,7 +28,9 @@ from ..training import load_checkpoint, pick_device, score_padded
 def add_arguments(ap) -> None:
     ap.add_argument("--hepmc", nargs="*", type=Path, default=[], help="HepMC2/3 files")
     ap.add_argument("--skim", nargs="*", type=Path, default=[], help="skim HDF5 files (truth tables)")
-    ap.add_argument("--model", default="models/surrogate/surrogate.pt", help=".pt or .ckpt")
+    ap.add_argument("--analysis", default="emerging-jets-delphes",
+                    help="analysis id from the registry (analyses/<id>/analysis.yaml); its model is used unless --model is given")
+    ap.add_argument("--model", default=None, help="explicit .pt or .ckpt (overrides --analysis)")
     ap.add_argument("--out", default="results/predict")
     ap.add_argument("--max-events", type=int, default=None)
     ap.add_argument("--chunk", type=int, default=2000)
@@ -79,7 +81,14 @@ def run(args) -> None:
     if not args.hepmc and not args.skim:
         raise SystemExit("give --hepmc and/or --skim inputs")
     device = pick_device(args.device)
-    model, pre, extra = load_checkpoint(args.model, device)
+    model_path = args.model
+    if model_path is None:
+        from ..service import registry
+        a = registry.load(strict=False).get(args.analysis)
+        if a is None:
+            raise SystemExit(f"unknown analysis '{args.analysis}' (see analyses/); or pass --model")
+        model_path = a.model_path
+    model, pre, extra = load_checkpoint(model_path, device)
     model.to(device)
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     for path in [*args.hepmc, *args.skim]:
@@ -88,7 +97,7 @@ def run(args) -> None:
         else:
             jets, parts, n_ev = _truth_from_hepmc(path, args.max_events, args.chunk)
         summary, per_event, prob = predict_sample(jets, parts, n_ev, model, pre, device)
-        summary.update({"input": str(path), "model": str(args.model)})
+        summary.update({"input": str(path), "model": str(model_path), "analysis": None if args.model else args.analysis})
         stem = f"{path.stem}_{'skim' if path.suffix == '.h5' else 'hepmc'}"
         (out / f"{stem}.json").write_text(json.dumps(summary, indent=1))
         with h5py.File(out / f"{stem}.h5", "w") as h:
