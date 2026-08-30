@@ -222,52 +222,52 @@ $m_{\rhod} = \max(2\Lambda_{\mathrm{D}}, 2.2\,\mpid)$ so that the
 forced $\rhod \to \pid\pid$ decay stays open, and by raising the
 number of degenerate dark-quark flavours from one to two and three.
 Two of the scan points, $\mpid/\Lambda_{\mathrm{D}} = 0.2$ and $1.0$,
-are also generated with high statistics on dedicated seeds and enter
-the training of the surrogate, while the remaining points are reserved
-for evaluation.
+are also generated with high statistics as statistically independent
+samples and enter the training of the surrogate, while the remaining
+points are reserved for evaluation.
 
 The background is QCD dijet production with $\hat p_T > 450$~GeV,
-matched to the $Z'$ decay spectrum. Random seeds are reused across
-the lifetime grid so that the hard process is common to all lifetime
-points, which makes the lifetime comparison a controlled one. The
-samples, their sizes and their roles are collected in
-Table~\ref{tab:samples}. Samples are split by generator seed rather
-than by event, so that no event contributes to more than one of the
-training, validation and test sets, and the seeds that train the
-surrogate are disjoint from every seed the tagger has seen.
+matched to the $Z'$ decay spectrum. The same sequence of
+hard-scattering configurations is reused across the lifetime grid, so
+that the hard process is common to all lifetime points and the
+lifetime comparison is a controlled one. The samples, their sizes and
+their roles are collected in Table~\ref{tab:samples}. Each sample is
+divided into statistically independent subsamples for training,
+validation and testing, so that no event contributes to more than one
+role, and the events that train the surrogate are disjoint from every
+event the tagger has seen.
 
 \begin{table}[htbp]
   \centering
   \small
-  \setlength{\tabcolsep}{5pt}
-  \begin{tabular}{llcll}
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{llll}
     \toprule
-    sample & $\ctau$ grid & events & tagger seeds & surrogate seeds \\
+    sample & $\ctau$ grid & tagger events (train / val / test) & surrogate training events \\
     \midrule
-    QCD dijet & -- & $1.0\times10^{6}$ & 1--60 / 61--70 / 71--100 & -- \\
-    nominal signal & 6 points & $3.2\times10^{6}$ & 1--24 / 25--27 / 28--34 & 35--54 \\
-    $\mpid/\Lambda_{\mathrm{D}} = 0.2$ & 6 points & $6.5\times10^{5}$ & -- & 35--44 \\
-    $\mpid/\Lambda_{\mathrm{D}} = 1.0$ & 6 points & $6.5\times10^{5}$ & -- & 35--44 \\
+    QCD dijet & -- & $6.0\,/\,1.0\,/\,3.0 \times 10^{5}$ & -- \\
+    nominal signal & 6 points & $14\,/\,1.8\,/\,4.2 \times 10^{5}$ & $1.2\times10^{6}$ \\
+    $\mpid/\Lambda_{\mathrm{D}} = 0.2$ & 6 points & -- & $6.0\times10^{5}$ \\
+    $\mpid/\Lambda_{\mathrm{D}} = 1.0$ & 6 points & -- & $6.0\times10^{5}$ \\
     \midrule
-    $\mpid = 10$, $2$~GeV & 6 points & $3.0\times10^{5}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
-    $\mpid/\Lambda_{\mathrm{D}} = 0.35$, $0.7$, $1.4$ & $0.1$~mm & $5.0\times10^{4}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
-    $N_{\mathrm{flav}} = 2, 3$ & $0.1$~mm & $5.0\times10^{4}$ each & \multicolumn{2}{l}{evaluation only, seeds 1--5} \\
+    $\mpid = 10$, $2$~GeV & 6 points & \multicolumn{2}{l}{evaluation only, $3.0\times10^{5}$ events each} \\
+    $\mpid/\Lambda_{\mathrm{D}} = 0.35$, $0.7$, $1.4$ & $0.1$~mm & \multicolumn{2}{l}{evaluation only, $5.0\times10^{4}$ events each} \\
+    $N_{\mathrm{flav}} = 2, 3$ & $0.1$~mm & \multicolumn{2}{l}{evaluation only, $5.0\times10^{4}$ events each} \\
     \bottomrule
   \end{tabular}
   \caption{Monte Carlo samples and their roles. The nominal signal
   is the dark-shower benchmark with $\mpid = 5$~GeV, the background is
-  QCD dijet production with $\hat p_T > 450$~GeV, every sample
-  contains $10^{4}$ events per generator seed and lifetime point, and the
-  six-point lifetime grid is
-  $\ctau(\pid) \in \{0.01, 0.05, 0.1, 0.5, 1, 5\}$~mm. Tagger seeds
-  are given as training / validation / test. The training seeds of the
-  surrogate, including those of the two
-  $\mpid/\Lambda_{\mathrm{D}}$ training points, are disjoint from
-  every tagger seed and from the seeds of the evaluation samples, and
-  the scan points not listed as training, as well as the
-  alternative-mass models, are never used in training. The evaluation
-  rows also include the seeds 1--5 of the two
-  $\mpid/\Lambda_{\mathrm{D}}$ training points.}
+  QCD dijet production with $\hat p_T > 450$~GeV, and the six-point
+  lifetime grid is
+  $\ctau(\pid) \in \{0.01, 0.05, 0.1, 0.5, 1, 5\}$~mm, with equal
+  statistics per lifetime point. All subsamples are statistically
+  independent. The training events of the surrogate, including those
+  of the two $\mpid/\Lambda_{\mathrm{D}}$ training points, share no
+  event with anything the tagger has seen or with any evaluation
+  sample, and the two training points also have an independent
+  $5.0\times10^{4}$-event evaluation sample at $\ctau = 0.1$~mm. The
+  scan points not listed as training, as well as the alternative-mass
+  models, are never used in training.}
   \label{tab:samples}
 \end{table}
 
@@ -431,17 +431,17 @@ $3\times10^{-4}$, batches of 512 jets, and early stopping on the
 validation loss. The six signal lifetimes are pooled, so that a
 single tagger serves the full lifetime grid, as in the ATLAS search.
 
-The tagger trains on the training seeds of the nominal signal model
-and of the background of Table~\ref{tab:samples}, $24$ signal seeds
-per lifetime point and $60$ background seeds, with $3$ and $10$ seeds
-for validation. The training set contains $3.2\times10^6$
+The tagger trains on the training subsamples of the nominal signal
+model and of the background of Table~\ref{tab:samples}, with
+independent subsamples for validation and for testing. The training
+set contains $3.2\times10^6$
 large-radius jets, of which $2.0\times10^6$ are signal.
 
 \subsection{Working point and signal region}
 \label{sec:sr}
 
 The working point is the logit threshold at which the background jet
-efficiency on the test seeds is $10^{-3}$, that is, a background
+efficiency on the test sample is $10^{-3}$, that is, a background
 rejection of $10^{3}$. The test background sample of $6.0\times10^5$
 jets leaves $600$ jets above threshold, so the working point is a
 measurement and not a statistical bound. The signal region requires at
@@ -450,7 +450,7 @@ point. Its efficiency $\effSR$ is the quantity the surrogate is asked
 to predict.
 
 Training stops after $26$ epochs, with the best validation loss at
-epoch $20$ and a validation accuracy of $0.934$. On the test seeds the
+epoch $20$ and a validation accuracy of $0.934$. On the test sample the
 area under the ROC curve is $0.975$, and the ROC curves per lifetime
 are shown in Fig.~\ref{fig:roc}. The threshold at $10^{3}$ rejection
 gives the signal jet efficiencies of Table~\ref{tab:wp}.
@@ -460,7 +460,7 @@ gives the signal jet efficiencies of Table~\ref{tab:wp}.
   \centering
   \includegraphics[width=0.6\textwidth]{tagger_roc.pdf}
   \caption{Background rejection as a function of signal jet efficiency
-  for the track transformer tagger, evaluated on the test seeds, for
+  for the track transformer tagger, evaluated on the test sample, for
   each dark-pion lifetime. The dashed line marks the working point at a
   rejection of $10^{3}$.}
   \label{fig:roc}
@@ -477,7 +477,7 @@ gives the signal jet efficiencies of Table~\ref{tab:wp}.
     \bottomrule
   \end{tabular}
   \caption{Tagger performance at the working point on the nominal
-  signal model, test seeds.}
+  signal model, test sample.}
   \label{tab:wp}
 \end{table}
 
@@ -513,10 +513,10 @@ obtained from the binary cross-entropy loss, which is a proper scoring
 rule and therefore yields calibrated probabilities when the model
 capacity and statistics permit.
 
-The surrogate is trained on signal only, on the dedicated surrogate
-seeds of Table~\ref{tab:samples}, which are disjoint from every seed
-the tagger has seen, so that the labels are the out-of-sample decisions
-of the frozen tagger. The training set combines the nominal model with
+The surrogate is trained on signal only, on its dedicated training
+subsamples of Table~\ref{tab:samples}, which share no event with
+anything the tagger has seen, so that the labels are the out-of-sample
+decisions of the frozen tagger. The training set combines the nominal model with
 the two $\mpid/\Lambda_{\mathrm{D}}$ training points at all six
 lifetimes, $3.5\times10^{6}$ truth jets in total, so that the
 fragmentation of the dark shower and the amount of displacement vary
@@ -525,7 +525,7 @@ surrogate is never applied to background and jets with labels near
 zero only distort the calibration on the signal-like phase space. The
 alternative-mass models, the remaining
 $\mpid/\Lambda_{\mathrm{D}}$ points, the dark-flavour variants and
-the test seeds of the nominal model are held out entirely.
+the test subsample of the nominal model are held out entirely.
 
 \subsection{From jets to events}
 
@@ -554,7 +554,7 @@ response.
 \subsection{Closure on the training model}
 
 \stub{Predicted versus actual $\effSR$ for the nominal model on the
-test seeds, per lifetime (Fig.~\ref{fig:sr}, left panel, and
+test sample, per lifetime (Fig.~\ref{fig:sr}, left panel, and
 Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
 (Fig.~\ref{fig:jetpt}). Calibration curve (Fig.~\ref{fig:calib}).}
 
@@ -572,7 +572,7 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
     \includegraphics[width=\textwidth]{sr_efficiency_m2.pdf}
     \caption{}
   \end{subfigure}
-  \caption{Signal-region efficiency as a function of the dark-pion lifetime for (a) the nominal model on the test seeds and (b, c) the two dark-pion masses not used in training, $\mpid = 10$ and $2$~GeV. Filled circles are the detector-level efficiency from the reconstructed tracks and the tagger, open squares the surrogate prediction from the truth record alone, Eq.~(\ref{eq:pb}). The lower pads show the ratio of predicted to detector-level efficiency.}
+  \caption{Signal-region efficiency as a function of the dark-pion lifetime for (a) the nominal model on the held-out test sample and (b, c) the two dark-pion masses not used in training, $\mpid = 10$ and $2$~GeV. Filled circles are the detector-level efficiency from the reconstructed tracks and the tagger, open squares the surrogate prediction from the truth record alone, Eq.~(\ref{eq:pb}). The lower pads show the ratio of predicted to detector-level efficiency.}
   \label{fig:sr}
 \end{figure}
 
@@ -605,8 +605,8 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
   \caption{Signal-region efficiency from the full detector-level chain
   and from the surrogate, with their ratio, and the area under the
   per-jet ROC curve of the surrogate against the detector-level
-  decision. The $\mpid = 5$~GeV rows use test seeds of the training
-  model. The other masses were never seen in training.}
+  decision. The $\mpid = 5$~GeV rows use the held-out test sample of
+  the training model. The other masses were never seen in training.}
   \label{tab:closure}
 \end{table}
 
@@ -624,7 +624,7 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
     \includegraphics[width=\textwidth]{jet_eff_vs_pt_m2.pdf}
     \caption{}
   \end{subfigure}
-  \caption{Per-jet tagging probability as a function of the truth large-radius jet $\pT$ for (a) $\mpid = 5$~GeV (test seeds), (b) $10$~GeV and (c) $2$~GeV, per lifetime. Markers are the detector-level pass fraction, dashed lines the mean surrogate probability in the same bin. The turn-on below $200$~GeV reflects the detector-level jet $\pT$ threshold.}
+  \caption{Per-jet tagging probability as a function of the truth large-radius jet $\pT$ for (a) $\mpid = 5$~GeV (held-out test sample), (b) $10$~GeV and (c) $2$~GeV, per lifetime. Markers are the detector-level pass fraction, dashed lines the mean surrogate probability in the same bin. The turn-on below $200$~GeV reflects the detector-level jet $\pT$ threshold.}
   \label{fig:jetpt}
 \end{figure}
 
@@ -642,7 +642,7 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
     \includegraphics[width=\textwidth]{calibration_m2.pdf}
     \caption{}
   \end{subfigure}
-  \caption{Calibration of the surrogate for (a) $\mpid = 5$~GeV (test seeds), (b) $10$~GeV and (c) $2$~GeV: the detector-level pass fraction in bins of the predicted probability, with the marker area proportional to the fraction of jets in the bin. A calibrated surrogate lies on the diagonal. No calibration is applied to the surrogate output.}
+  \caption{Calibration of the surrogate for (a) $\mpid = 5$~GeV (held-out test sample), (b) $10$~GeV and (c) $2$~GeV: the detector-level pass fraction in bins of the predicted probability, with the marker area proportional to the fraction of jets in the bin. A calibrated surrogate lies on the diagonal. No calibration is applied to the surrogate output.}
   \label{fig:calib}
 \end{figure}
 
@@ -840,9 +840,8 @@ Eur.\ Phys.\ J.\ C \textbf{72} (2012) 1896, [\texttt{arXiv:1111.6097}].
 \label{app:settings}
 
 The signal configuration used for all results in this paper is listed
-below. The dark-pion lifetime (\texttt{4900111:tau0}, in mm), the
-dark-sector mass scale and the random seed are set per grid point at
-run time. The background samples use the same beam settings with
+below. The dark-pion lifetime (\texttt{4900111:tau0}, in mm) and the
+dark-sector mass scale are set per grid point at run time. The background samples use the same beam settings with
 \texttt{HardQCD:all} and \texttt{PhaseSpace:pTHatMin = 450}.
 
 {\small
