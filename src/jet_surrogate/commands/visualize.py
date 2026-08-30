@@ -244,29 +244,39 @@ def plot_shapes(shapes: dict, out: Path) -> None:
     efficiencies), one curve per variant, nominal always included."""
     from ..generate import NOMINAL_LAMBDA, NOMINAL_MPID
     from ..plotting import color, decorate, plt, save
+    nom = [r for r in shapes.values() if r["lam"] < 0 and r["nflav"] < 0]
+    ref = [r for r in nom if abs(r["ctau"] - 0.1) < 1e-9]
     scans = {
-        "lambda": sorted((r for r in shapes.values() if r["lam"] > 0 or (r["lam"] < 0 <= 1 and r["nflav"] < 0)),
+        "lambda": sorted([r for r in shapes.values() if r["lam"] > 0] + ref,
                          key=lambda r: NOMINAL_MPID / (r["lam"] if r["lam"] > 0 else NOMINAL_LAMBDA)),
-        "nflav": sorted((r for r in shapes.values() if r["nflav"] > 0 or (r["lam"] < 0 and r["nflav"] < 0)),
+        "nflav": sorted([r for r in shapes.values() if r["nflav"] > 0] + ref,
                         key=lambda r: max(r["nflav"], 1)),
+        "ctau": sorted(nom, key=lambda r: r["ctau"]),
     }
     def curve_label(kind, r):
+        if kind == "ctau":
+            return f"c$\\tau$ = {r['ctau']:g} mm"
         if kind == "lambda":
-            return f"$m_{{\pi_d}}/\Lambda_d$ = {NOMINAL_MPID / (r['lam'] if r['lam'] > 0 else NOMINAL_LAMBDA):g}"                    + (" (nominal)" if r["lam"] < 0 else "")
+            return f"$m_{{\pi_d}}/\Lambda_d$ = {round(NOMINAL_MPID / (r['lam'] if r['lam'] > 0 else NOMINAL_LAMBDA), 2):g}" \
+                   + (" (nominal)" if r["lam"] < 0 else "")
         return f"$N_{{flav}}$ = {max(r['nflav'], 1)}" + (" (nominal)" if r["nflav"] < 0 else "")
-    extra = "$m_{\pi_d}$ = 5 GeV, c$\\tau$ = 0.1 mm, jets $p_T > 200$ GeV"
+    extras = {"lambda": "$m_{\pi_d}$ = 5 GeV, c$\\tau$ = 0.1 mm, jets $p_T > 200$ GeV",
+              "nflav": "$m_{\pi_d}$ = 5 GeV, c$\\tau$ = 0.1 mm, jets $p_T > 200$ GeV",
+              "ctau": "$m_{\pi_d}$ = 5 GeV, $m_{\pi_d}/\\Lambda_d$ = 0.5, jets $p_T > 200$ GeV"}
     for kind, rows in scans.items():
         for var, (xlabel, logx) in SHAPE_LABELS.items():
             fig, ax = plt.subplots(figsize=(7, 6))
             for i, r in enumerate(rows):
                 h = r["hists"][var]
                 e, d = np.array(h["edges"]), np.array(h["density"])
+                if logx:                       # per logarithmic bin, so shapes on a log axis compare by area
+                    d = d * np.diff(e) / np.diff(np.log(e))
                 ax.stairs(d, e, color=color(i), lw=1.6, label=curve_label(kind, r))
             if logx:
                 ax.set_xscale("log")
-            ax.set_xlabel(xlabel); ax.set_ylabel("normalized to unit area")
+            ax.set_xlabel(xlabel); ax.set_ylabel("normalized per logarithmic bin" if logx else "normalized to unit area")
             ax.set_ylim(0, ax.get_ylim()[1] * 1.55)
-            decorate(ax, extra)
+            decorate(ax, extras[kind])
             ax.legend(loc="upper right", fontsize=10)
             save(fig, out / f"shape_{var}_{kind}.png")
         for var, (xlabel, ylabel) in EFF_LABELS.items():
@@ -277,7 +287,7 @@ def plot_shapes(shapes: dict, out: Path) -> None:
                 y = np.array([b["eff"] for b in rows_e]); ye = np.array([b["err"] for b in rows_e])
                 ax.errorbar(x, y, ye, fmt="o-", ms=3.5, lw=1.2, color=color(i), label=curve_label(kind, r))
             ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.set_ylim(0, 1.55)
-            decorate(ax, extra)
+            decorate(ax, extras[kind])
             ax.legend(loc="upper right", fontsize=10)
             save(fig, out / f"{var}_{kind}.png")
 

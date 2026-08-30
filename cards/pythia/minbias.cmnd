@@ -1,0 +1,18 @@
+! Minimum-bias sample for the pileup overlay: inclusive inelastic pp.
+! Contains the physically important displaced pileup component (strange
+! hadron decays) that a parametrized prompt overlay misses. Converted with
+! hepmc2pileup into the binary library read by Delphes' PileUpMerger.
+! Random seed is set programmatically.
+
+Beams:idA = 2212
+Beams:idB = 2212
+Beams:eCM = 13600.
+
+SoftQCD:inelastic = on
+
+Random:setSeed = on
+Next:numberCount = 0
+Next:numberShowEvent = 0
+Next:numberShowProcess = 0
+Next:numberShowInfo = 0
+Print:quiet = on

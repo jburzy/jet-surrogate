@@ -30,6 +30,8 @@ def add_arguments(ap) -> None:
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out", default="data/delphes")
     ap.add_argument("--quiet", action="store_true", help="suppress Pythia/Delphes stdout")
+    ap.add_argument("--hepmc2", action="store_true",
+                    help="write HepMC2 ASCII instead of HepMC3 (input format of Delphes' hepmc2pileup)")
     ap.add_argument("--format", choices=["delphes", "hepmc"], default="delphes",
                     help="delphes: DelphesPythia8 ROOT (full chain); hepmc: standalone Pythia8 -> HepMC3 "
                          "(input for `jet-surrogate predict`)")
@@ -38,7 +40,7 @@ def add_arguments(ap) -> None:
 def run(args) -> None:
     if args.card:
         t0 = time.time()
-        out = generate_hepmc("card", n_events=args.nevents, seed=args.seed, card=args.card,
+        out = generate_hepmc("card", n_events=args.nevents, seed=args.seed, card=args.card, hepmc_version=2 if args.hepmc2 else 3,
                              settings=[x.replace("=", " = ", 1) if "=" in x and " = " not in x else x for x in args.set],
                              out_dir=args.out if args.out != "data/delphes" else "data/hepmc")
         print(f"wrote {out}  ({args.nevents} events, {time.time() - t0:.0f} s)", flush=True)

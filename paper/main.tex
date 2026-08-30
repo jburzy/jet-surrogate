@@ -271,6 +271,38 @@ event the tagger has seen.
   \label{tab:samples}
 \end{table}
 
+Figure~\ref{fig:samplespan} shows why the training set of the
+surrogate is composed this way. The decision of the tagger correlates
+with two properties of a jet that the model parameters steer almost
+independently. The dark-pion lifetime sets how much of the jet is
+displaced, and $\mpid/\Lambda_{\mathrm{D}}$ sets how the jet
+fragments, that is, the multiplicity and hardness of the dark hadrons.
+The lifetime grid varies the first at fixed fragmentation, and the two
+$\mpid/\Lambda_{\mathrm{D}}$ training points vary the second at
+every lifetime, so the surrogate is trained across the plane of the
+key correlations the detector-level tagger has learned rather than
+along a single line through it.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{shape_dark_pt_lambda.pdf}
+    \caption{}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{shape_dark_decay_len_ctau.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{The two directions spanned by the training samples of the
+  surrogate, shown through generator-level quantities of the truth
+  large-radius jets. (a) Dark-hadron transverse momentum across the
+  $\mpid/\Lambda_{\mathrm{D}}$ scan at $\ctau = 0.1$~mm. (b)
+  Dark-hadron decay length across the lifetime grid of the nominal
+  model. Distributions are normalized per logarithmic bin.}
+  \label{fig:samplespan}
+\end{figure}
+
 \subsection{Detector simulation}
 \label{sec:detector}
 

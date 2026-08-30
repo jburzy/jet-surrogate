@@ -142,7 +142,7 @@ def generate_sample(sample: str, *, n_events: int, seed: int = 1,
 def generate_hepmc(sample: str, *, n_events: int, seed: int = 1, ctau_mm: float | None = None,
                    mpid: float = NOMINAL_MPID, lam: float | None = None, nflav: int | None = None,
                    out_dir: str | Path = "data/hepmc", card: str | Path | None = None,
-                   settings: list[str] | None = None) -> Path:
+                   settings: list[str] | None = None, hepmc_version: int = 3) -> Path:
     """Standalone Pythia8 with the same card, written as HepMC3 (no detector
     simulation). This is the input format of ``jet-surrogate predict``."""
     import numpy as np
@@ -192,5 +192,5 @@ def generate_hepmc(sample: str, *, n_events: int, seed: int = 1, ctau_mm: float 
             n += 1
 
     path = out_dir / f"{stem}.hepmc"
-    write_hepmc(path, records())
+    write_hepmc(path, records(), version=hepmc_version)
     return path

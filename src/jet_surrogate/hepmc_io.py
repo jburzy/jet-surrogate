@@ -137,14 +137,14 @@ def _to_awkward(batch: list[dict]) -> ak.Array:
     return ak.zip({"part": part}, depth_limit=1)
 
 
-def write_hepmc(path: str | Path, events: Iterator[dict], *, weights=None) -> int:
+def write_hepmc(path: str | Path, events: Iterator[dict], *, weights=None, version: int = 3) -> int:
     """Write HepMC3 (ASCII) from flat per-event records with FIELDS columns
     (positions in mm, momenta in GeV). Each particle with daughters gets an
     end vertex at the daughters' production point; daughters sharing a
     production point with several mothers join the same vertex. Returns the
     number of events written."""
     hm = _hm()
-    writer = hm.WriterAscii(str(path))
+    writer = hm.WriterAsciiHepMC2(str(path)) if version == 2 else hm.WriterAscii(str(path))
     n_written = 0
     for rec in events:
         evt = hm.GenEvent(hm.Units.GEV, hm.Units.MM)

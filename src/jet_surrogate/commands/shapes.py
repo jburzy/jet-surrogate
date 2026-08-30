@@ -5,7 +5,9 @@
 Why does the detector-level tagger efficiency change with m_pi/Lambda while
 the surrogate prediction stays flat? This histograms, for the nominal test
 seeds and every variant, the tagger-side observables (tracks in reco jets,
-tagger logit) and the surrogate-side observables (truth particles, dark
+tagger logit) and the surrogate-side observables, across the Lambda and
+nFlav scans at the reference lifetime and across the lifetime grid of the
+nominal model, (truth particles, dark
 hadrons in truth jets), plus per-jet efficiencies versus a few of them.
 Writes results/shapes.json; figures come from ``visualize --only shapes``.
 """
@@ -109,11 +111,12 @@ def run(args) -> None:
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     groups: dict[str, list] = defaultdict(list)
     for f in skim_files(args.data, samples=("signal",), require_scores=True):
-        nominal = f.mpid == NOMINAL_MPID and abs(f.ctau - 0.1) < 1e-9
-        if f.variant and nominal and f.split == "test":
-            groups[f.tag].append(f)
-        elif nominal and not f.variant and f.split == "test":
-            groups[f.tag].append(f)
+        if f.mpid != NOMINAL_MPID or f.split != "test":
+            continue
+        if f.variant and abs(f.ctau - 0.1) < 1e-9:
+            groups[f.tag].append(f)          # Lambda / nFlav scan at the reference lifetime
+        elif not f.variant:
+            groups[f.tag].append(f)          # nominal model, every lifetime
     results = {}
     for tag in sorted(groups):
         print(f"{tag}: {len(groups[tag])} files", flush=True)
