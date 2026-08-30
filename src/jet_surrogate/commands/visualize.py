@@ -27,7 +27,7 @@ def add_arguments(ap) -> None:
     ap.add_argument("--surrogate", default="models/surrogate")
     ap.add_argument("--results", default="results")
     ap.add_argument("--out", default="results/figures")
-    ap.add_argument("--only", choices=["tagger", "training", "closure"], default=None)
+    ap.add_argument("--only", choices=["tagger", "training", "closure", "shapes"], default=None)
 
 
 def _mass_tag(m: float) -> str:
@@ -213,6 +213,75 @@ def plot_variants(results: dict, out: Path) -> None:
         save(fig, out / f"sr_efficiency_scan_{kind}.png")
 
 
+SHAPE_LABELS = {
+    "trk_n": ("tracks per jet", False),
+    "trk_n_displaced": ("displaced tracks per jet ($|d_0|/\\sigma > 3$)", False),
+    "trk_frac_displaced": ("displaced-track fraction", False),
+    "trk_d0sig": ("track $|d_0|/\\sigma_{d_0}$", True),
+    "trk_absd0": ("track $|d_0|$ [mm]", True),
+    "trk_pt": ("track $p_T$ [GeV]", True),
+    "reco_logit": ("tagger logit", False),
+    "reco_jet_mass": ("reco jet mass [GeV]", False),
+    "part_n": ("truth particles per jet", False),
+    "part_n_charged": ("stable charged particles per jet", False),
+    "dark_n": ("dark hadrons per jet", False),
+    "dark_pt": ("dark-hadron $p_T$ [GeV]", True),
+    "dark_ptfrac": ("dark-hadron $p_T$ fraction of jet", False),
+    "dark_decay_len": ("dark-hadron decay length [mm]", True),
+    "sm_decayed_n": ("decayed SM hadrons per jet", False),
+    "truth_jet_mass": ("truth jet mass [GeV]", False),
+}
+EFF_LABELS = {
+    "reco_eff_vs_n_displaced": ("displaced tracks per jet ($|d_0|/\\sigma > 3$)", "tagger efficiency (reco jets)"),
+    "reco_eff_vs_frac_displaced": ("displaced-track fraction", "tagger efficiency (reco jets)"),
+    "truth_eff_vs_dark_n": ("dark hadrons per jet", "tagger efficiency (truth jets)"),
+    "truth_eff_vs_part_n": ("truth particles per jet", "tagger efficiency (truth jets)"),
+}
+
+
+def plot_shapes(shapes: dict, out: Path) -> None:
+    """One figure per observable per scan: normalized distributions (or
+    efficiencies), one curve per variant, nominal always included."""
+    from ..generate import NOMINAL_LAMBDA, NOMINAL_MPID
+    from ..plotting import color, decorate, plt, save
+    scans = {
+        "lambda": sorted((r for r in shapes.values() if r["lam"] > 0 or (r["lam"] < 0 <= 1 and r["nflav"] < 0)),
+                         key=lambda r: NOMINAL_MPID / (r["lam"] if r["lam"] > 0 else NOMINAL_LAMBDA)),
+        "nflav": sorted((r for r in shapes.values() if r["nflav"] > 0 or (r["lam"] < 0 and r["nflav"] < 0)),
+                        key=lambda r: max(r["nflav"], 1)),
+    }
+    def curve_label(kind, r):
+        if kind == "lambda":
+            return f"$m_{{\pi_d}}/\Lambda_d$ = {NOMINAL_MPID / (r['lam'] if r['lam'] > 0 else NOMINAL_LAMBDA):g}"                    + (" (nominal)" if r["lam"] < 0 else "")
+        return f"$N_{{flav}}$ = {max(r['nflav'], 1)}" + (" (nominal)" if r["nflav"] < 0 else "")
+    extra = "$m_{\pi_d}$ = 5 GeV, c$\tau$ = 0.1 mm, jets $p_T > 200$ GeV"
+    for kind, rows in scans.items():
+        for var, (xlabel, logx) in SHAPE_LABELS.items():
+            fig, ax = plt.subplots(figsize=(7, 6))
+            for i, r in enumerate(rows):
+                h = r["hists"][var]
+                e, d = np.array(h["edges"]), np.array(h["density"])
+                ax.stairs(d, e, color=color(i), lw=1.6, label=curve_label(kind, r))
+            if logx:
+                ax.set_xscale("log")
+            ax.set_xlabel(xlabel); ax.set_ylabel("normalized to unit area")
+            ax.set_ylim(0, ax.get_ylim()[1] * 1.55)
+            decorate(ax, extra)
+            ax.legend(loc="upper right", fontsize=10)
+            save(fig, out / f"shape_{var}_{kind}.png")
+        for var, (xlabel, ylabel) in EFF_LABELS.items():
+            fig, ax = plt.subplots(figsize=(7, 6))
+            for i, r in enumerate(rows):
+                rows_e = r["effs"][var]
+                x = np.array([(b["lo"] + b["hi"]) / 2 for b in rows_e])
+                y = np.array([b["eff"] for b in rows_e]); ye = np.array([b["err"] for b in rows_e])
+                ax.errorbar(x, y, ye, fmt="o-", ms=3.5, lw=1.2, color=color(i), label=curve_label(kind, r))
+            ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.set_ylim(0, 1.55)
+            decorate(ax, extra)
+            ax.legend(loc="upper right", fontsize=10)
+            save(fig, out / f"{var}_{kind}.png")
+
+
 def run(args) -> None:
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     tagger, surrogate, results = Path(args.tagger), Path(args.surrogate), Path(args.results)
@@ -226,4 +295,6 @@ def run(args) -> None:
         res = json.loads((results / "summary.json").read_text())
         plot_closure(res, out); made.append("closure")
         plot_variants(res, out); made.append("scans")
+    if args.only in (None, "shapes") and (results / "shapes.json").exists():
+        plot_shapes(json.loads((results / "shapes.json").read_text()), out); made.append("shapes")
     print(f"figures in {out}: {', '.join(made) or 'nothing to plot yet'}")

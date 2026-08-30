@@ -6,6 +6,7 @@
     jet-surrogate apply-tagger    score every reco jet, derive surrogate labels
     jet-surrogate train-surrogate truth-particle transformer (GPU)
     jet-surrogate evaluate        surrogate closure -> results/summary.json
+    jet-surrogate shapes          variant distribution study -> results/shapes.json
     jet-surrogate visualize       every figure, from stored outputs only
     jet-surrogate predict         HepMC (or skim) -> a surrogate checkpoint -> SR efficiency of a new model
     jet-surrogate export-hepmc    Delphes generator record -> HepMC3 (cross-checks, examples)
@@ -26,6 +27,7 @@ COMMANDS = {
     "apply-tagger": "jet_surrogate.commands.apply_tagger",
     "train-surrogate": "jet_surrogate.commands.train_surrogate",
     "evaluate": "jet_surrogate.commands.evaluate",
+    "shapes": "jet_surrogate.commands.shapes",
     "visualize": "jet_surrogate.commands.visualize",
     "predict": "jet_surrogate.commands.predict",
     "export-hepmc": "jet_surrogate.commands.export_hepmc",
