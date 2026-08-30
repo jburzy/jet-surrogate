@@ -110,7 +110,7 @@ def run(args) -> None:
     groups: dict[str, list] = defaultdict(list)
     for f in skim_files(args.data, samples=("signal",), require_scores=True):
         nominal = f.mpid == NOMINAL_MPID and abs(f.ctau - 0.1) < 1e-9
-        if f.variant and nominal:
+        if f.variant and nominal and f.split == "test":
             groups[f.tag].append(f)
         elif nominal and not f.variant and f.split == "test":
             groups[f.tag].append(f)

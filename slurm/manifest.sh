@@ -36,7 +36,7 @@ VARIANT_CTAU=${VARIANT_CTAU:-0.1}
 VARIANT_LAMBDAS="25 14.3 7.1 5 3.6"      # m_pi / Lambda = 0.2 0.35 0.7 1.0 1.4 (0.5 is the nominal)
 VARIANT_NFLAVS="2 3"
 VARIANT_SEEDS=${VARIANT_SEEDS:-5}
-voutfile() { printf '%s/signal_m5_ctau%gmm_%s_seed%d.root' "$DATA/delphes" "$VARIANT_CTAU" "$1" "$2"; }
+voutfile() { printf '%s/signal_m5_ctau%gmm_%s_seed%d.root' "$DATA" "$VARIANT_CTAU" "$1" "$2"; }
 vemit() {   # vemit <suffix> <seed> <extra args>
     if [[ $TODO_ONLY == --todo ]] && [[ -s $(voutfile "$1" "$2") ]]; then return; fi
     echo "signal 5 $VARIANT_CTAU $2 $3"
@@ -44,4 +44,15 @@ vemit() {   # vemit <suffix> <seed> <extra args>
 { for l in $VARIANT_LAMBDAS; do for s in $(seq 1 "$VARIANT_SEEDS"); do vemit "lam$l" "$s" "--lambda $l"; done; done
   for n in $VARIANT_NFLAVS; do for s in $(seq 1 "$VARIANT_SEEDS"); do vemit "nf$n" "$s" "--nflav $n"; done; done
 } > "$DIR/manifest_variants.txt"
+# Lambda points included in surrogate training (data.TRAIN_LAMBDAS), all six
+# lifetimes, dedicated seeds 35-44 (disjoint from the 1-5 evaluation seeds
+# and every tagger seed)
+TRAIN_LAMBDAS="25 5"
+TRAIN_VARIANT_SEEDS=${TRAIN_VARIANT_SEEDS:-"35 44"}
+tvoutfile() { printf '%s/signal_m5_ctau%gmm_lam%s_seed%d.root' "$DATA" "$1" "$2" "$3"; }
+{ for l in $TRAIN_LAMBDAS; do for c in $CTAUS; do for s in $(seq ${TRAIN_VARIANT_SEEDS// / }); do
+    if [[ $TODO_ONLY == --todo ]] && [[ -s $(tvoutfile "$c" "$l" "$s") ]]; then continue; fi
+    echo "signal 5 $c $s --lambda $l"
+  done; done; done
+} > "$DIR/manifest_variants_train.txt"
 for f in "$DIR"/manifest_*.txt; do printf '%-50s %5d jobs\n' "$f" "$(wc -l < "$f")"; done

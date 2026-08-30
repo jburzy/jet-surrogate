@@ -6,6 +6,8 @@ between train / val / test:
     qcd                 seeds 1-60 train, 61-70 val, 71+ test
     signal m_pid = 5    seeds 1-24 train, 25-27 val, 28-34 test, 35+ surrogate
     signal other m_pid  all test (surrogate evaluation points)
+    Lambda variants     m_pi/Lambda in TRAIN_LAMBDA_RATIOS and seed >= 35:
+                        surrogate; every other variant file: test
 
 The tagger trains on train seeds, early-stops on val seeds and fixes its
 working point on test seeds. The surrogate trains on the ``surrogate`` seeds
@@ -30,6 +32,12 @@ from .skim import parse_stem
 
 SCORES_DIR = os.environ.get("JS_SCORES_DIR", "data/scores")   # override for smoke tests
 
+# Lambda-scan points included in surrogate training (step 1 of the
+# generalization plan): train on m_pi/Lambda = 0.2, 0.5 (nominal), 1.0 and
+# hold out 0.35, 0.7, 1.4. Only dedicated seeds (>= 35, disjoint from the
+# 1-5 evaluation seeds and every tagger seed) are used.
+TRAIN_LAMBDAS = (25.0, 5.0)
+
 
 @dataclass(frozen=True)
 class SkimFile:
@@ -44,14 +52,19 @@ class SkimFile:
 
     @property
     def variant(self) -> bool:
-        """Model variant at the nominal mass (Lambda or nFlav scan): evaluation only."""
+        """Model variant at the nominal mass (Lambda or nFlav scan)."""
         return self.lam > 0 or self.nflav > 0
 
     @property
     def split(self) -> str:
         if self.sample == "qcd":
             return "train" if self.seed <= 60 else "val" if self.seed <= 70 else "test"
-        if self.mpid == NOMINAL_MPID and not self.variant:
+        if self.variant:
+            # dedicated high seeds of the training Lambda points feed the
+            # surrogate; the low evaluation seeds (and every held-out
+            # variant) stay test
+            return "surrogate" if self.lam in TRAIN_LAMBDAS and self.seed >= 35 else "test"
+        if self.mpid == NOMINAL_MPID:
             return ("train" if self.seed <= 24 else "val" if self.seed <= 27
                     else "test" if self.seed <= 34 else "surrogate")
         return "test"
@@ -78,8 +91,9 @@ def skim_files(data_dir: str | Path = "data/skim", *, samples=None, splits=None,
             continue
         if splits and f.split not in splits:
             continue
-        if mpid is not None and f.sample == "signal" and (f.mpid != mpid or f.variant):
-            continue                       # training selections never see the model variants
+        if mpid is not None and f.sample == "signal" and (
+                f.mpid != mpid or (f.variant and f.split != "surrogate")):
+            continue                       # variants only train through their dedicated surrogate seeds
         if ctaus is not None and f.sample == "signal" and not any(abs(f.ctau - c) < 1e-9 for c in ctaus):
             continue
         if require_scores and not f.scores_path.exists():
