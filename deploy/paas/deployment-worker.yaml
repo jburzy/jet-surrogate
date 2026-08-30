@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jet-surrogate-worker
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from": {"kind": "ImageStreamTag", "name": "jet-surrogate:latest"}, "fieldPath": "spec.template.spec.containers[?(@.name==\"worker\")].image"}]
 spec:
   replicas: 1                        # one job per worker at a time; the default project quota is 1 CPU of requests in total
   selector:
@@ -12,7 +15,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: ghcr.io/jburzy/jet-surrogate:latest
+          image: jet-surrogate:latest        # ImageStreamTag (lookupPolicy local), kept current by the trigger
           args: ["worker"]
           envFrom: [{configMapRef: {name: jet-surrogate-config}}]
           volumeMounts: [{name: data, mountPath: /data}]

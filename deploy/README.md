@@ -47,6 +47,14 @@ docker run --rm -p 8080:8080 -v $PWD/service_data:/data -e JS_SERVICE_DIR=/data 
 docker run --rm -v $PWD/service_data:/data -e JS_SERVICE_DIR=/data jet-surrogate worker
 ```
 
+## Automatic updates
+
+`imagestream.yaml` imports `ghcr.io/jburzy/jet-surrogate:latest` on a
+schedule and the deployments carry image-change triggers, so every image
+built from `main` rolls out by itself within ~15 minutes. Contributors only
+add `analyses/<id>/`; the site renders the library from the records at
+startup. To force an immediate update: `oc import-image jet-surrogate:latest`.
+
 ## Notes
 
 - Uploads are deleted once processed; results and logs expire after

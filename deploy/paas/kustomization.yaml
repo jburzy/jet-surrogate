@@ -3,6 +3,7 @@ kind: Kustomization
 # oc login <cluster> && oc project prism && oc apply -k deploy/paas
 resources:
   - configmap.yaml
+  - imagestream.yaml
   - pvc.yaml
   - deployment-web.yaml
   - deployment-worker.yaml
@@ -11,6 +12,3 @@ resources:
   - cronjob-cleanup.yaml
 commonLabels:
   app: jet-surrogate
-images:
-  - name: ghcr.io/jburzy/jet-surrogate
-    newTag: latest
