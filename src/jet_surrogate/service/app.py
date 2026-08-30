@@ -47,6 +47,13 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "unknown figure")
         return FileResponse(p)
 
+    @app.get("/api/analyses/{analysis_id}/example")
+    def example(analysis_id: str):
+        a = analyses.get(analysis_id)
+        if a is None or a.example_path is None:
+            raise HTTPException(404, "no example file for this analysis")
+        return FileResponse(a.example_path, filename=a.example_path.name)
+
     @app.post("/api/jobs")
     async def submit(analysis: str = Form(...), file: UploadFile = File(...), label: str = Form(""),
                      max_events: int | None = Form(None)):

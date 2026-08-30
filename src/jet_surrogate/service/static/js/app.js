@@ -612,7 +612,9 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
         if (!current || a.id !== current.id) return;
         Object.assign(current, a);
         srText.textContent = a.signal_region || 'This analysis does not describe its signal region.';
-        inputsList.innerHTML = (a.inputs || []).map(s => '<li>' + esc(s) + '</li>').join('');
+        inputsList.innerHTML = (a.inputs || []).map(s => '<li>' + esc(s) + '</li>').join('')
+          + (a.example_url ? '<li>No file at hand? <a href="' + esc(a.example_url) + '">Download the example file</a> ('
+             + esc(a.example_name || 'example') + ') and submit it to see the workflow.</li>' : '');
       }).catch(() => { srText.textContent = 'The signal-region definition could not be loaded.'; });
     }
 

@@ -23,6 +23,7 @@ inputs:
 predictor:
   type: jet_surrogate
   model: surrogate.pt
+example: example.hepmc.gz          # 100 Pythia events, m(pi_d) = 10 GeV, ctau = 0.1 mm, for trying the service
 default_max_events: 20000
 max_events: 50000
 training: >-

@@ -33,6 +33,11 @@ class Analysis:
     predictor_type: str
     model_path: Path
 
+    @property
+    def example_path(self) -> Path | None:
+        f = self.record.get("example")
+        return (self.path / f) if f and (self.path / f).exists() else None
+
     def public(self, detail: bool = False) -> dict:
         r = self.record
         base = {"id": self.id, "title": r["title"], "short": r["short"], "experiment": r["experiment"],
@@ -40,7 +45,9 @@ class Analysis:
                 "tags": list(r.get("tags", [])),
                 "repo_url": f"{repo_url()}/tree/main/analyses/{self.id}",
                 "default_max_events": int(r.get("default_max_events", 20000)),
-                "max_events": int(r.get("max_events", 50000))}
+                "max_events": int(r.get("max_events", 50000)),
+                "example_url": f"/api/analyses/{self.id}/example" if self.example_path else None,
+                "example_name": self.example_path.name if self.example_path else None}
         if not detail:
             return base
         base.update({
@@ -87,6 +94,8 @@ def validate(path: Path) -> list[str]:
         problems.append(f"{path.name}: predictor.type must be one of {sorted(PREDICTORS)}")
     if not pred.get("model") or not (path / pred["model"]).exists():
         problems.append(f"{path.name}: predictor.model file '{pred.get('model')}' not found")
+    if r.get("example") and not (path / r["example"]).exists():
+        problems.append(f"{path.name}: example file '{r['example']}' not found")
     for f in r.get("figures", []):
         if not (path / "figures" / f.get("file", "")).exists():
             problems.append(f"{path.name}: figure '{f.get('file')}' not found in figures/")
