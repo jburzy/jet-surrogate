@@ -254,7 +254,7 @@ def plot_shapes(shapes: dict, out: Path) -> None:
         if kind == "lambda":
             return f"$m_{{\pi_d}}/\Lambda_d$ = {NOMINAL_MPID / (r['lam'] if r['lam'] > 0 else NOMINAL_LAMBDA):g}"                    + (" (nominal)" if r["lam"] < 0 else "")
         return f"$N_{{flav}}$ = {max(r['nflav'], 1)}" + (" (nominal)" if r["nflav"] < 0 else "")
-    extra = "$m_{\pi_d}$ = 5 GeV, c$\tau$ = 0.1 mm, jets $p_T > 200$ GeV"
+    extra = "$m_{\pi_d}$ = 5 GeV, c$\\tau$ = 0.1 mm, jets $p_T > 200$ GeV"
     for kind, rows in scans.items():
         for var, (xlabel, logx) in SHAPE_LABELS.items():
             fig, ax = plt.subplots(figsize=(7, 6))
