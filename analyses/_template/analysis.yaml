@@ -19,7 +19,7 @@ signal_region: >-
 inputs:
   - HepMC2 or HepMC3 ASCII, generator level, 13 TeV pp; long-lived particles decayed by the generator.
 predictor:
-  type: my_bdt                 # a class registered in predictor.py next to this file, or a built-in type (jet_surrogate)
+  type: my_bdt                 # the class registered in predictor.py next to this file
   model: model.json            # file in this directory loaded by the predictor
   config: {}                   # anything your predictor reads from analysis.record["predictor"]["config"]
 requirements: [xgboost]        # Python modules predictor.py imports (checked by CI; add them to pixi.toml's infer feature)

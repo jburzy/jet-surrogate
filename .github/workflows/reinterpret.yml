@@ -26,7 +26,7 @@ jobs:
             const url = field("HepMC file URL");
             if (!url.startsWith("http")) core.setFailed("no HepMC URL in the issue");
             core.setOutput("url", url);
-            const analysis = field("Analysis id") || "emerging-jets-delphes";
+            const analysis = field("Analysis id");
             if (!/^[a-z0-9-]+$/.test(analysis)) core.setFailed("invalid analysis id");
             core.setOutput("analysis", analysis);
             core.setOutput("label", field("Model description \\(optional\\)"));
@@ -56,7 +56,8 @@ jobs:
                 `| events | objects | SR efficiency | threshold-0.5 variant |\n|---|---|---|---|\n` +
                 `| ${j.n_events} | ${j.objects ? j.objects.count + ' ' + j.objects.label : '-'} | **${j.sr_efficiency.toFixed(4)} ± ${j.sr_efficiency_err.toFixed(4)}** | ` +
                 `${(j.sr_efficiency_threshold05 ?? NaN).toFixed(4)} |\n\n` +
-                `Signal region: two large-R jets with pT > 200 GeV above the tagger working point (10^3 QCD rejection). ` +
+                (j.quantities || []).map(q => `${q.name}: ${q.value}${q.err != null ? ' ± ' + q.err : ''}${q.unit ? ' ' + q.unit : ''}\n\n`).join('') +
+                `Signal region: ${j.signal_region || 'see the analysis record'} ` +
                 `Analysis: \`${j.analysis}\`, model: \`${j.model}\`, code: ${context.sha.slice(0, 7)}. Per-event probabilities are attached as a workflow artifact ` +
                 `([run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})).`;
             } catch (e) {

@@ -31,3 +31,5 @@ slurm/skim_list.txt
 # the analysis library is versioned in full, including its figures and models
 !analyses/**
 analyses/*/.assets/
+analyses/**/__pycache__/
+analyses/**/*.pyc

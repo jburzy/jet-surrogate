@@ -78,11 +78,11 @@
           <p>
             A contribution is a surrogate for one preserved analysis: a model that
             takes generator-level events and predicts whether the analysis would
-            select them. The surrogate must use a predictor type that the service
-            knows how to run (the first is <code>jet_surrogate</code>, a per-jet
-            classifier on truth-jet constituents). If your analysis needs a new
-            predictor type, open an issue first so we can add it to the runner
-            alongside your analysis.
+            select them. The inference code ships with the analysis as
+            <code>predictor.py</code> (see below), so the service needs no change
+            for a new model type. If your predictor needs a Python package the
+            runner does not have, add it to the <code>infer</code> environment in
+            the same pull request.
           </p>
           <p>
             Please make sure the model files and validation figures are approved
@@ -174,8 +174,9 @@ figures:                         # optional, files in figures/
             <code>predictor.py</code> next to <code>analysis.yaml</code>, so the main package stays small and each
             analysis is self-contained. The file defines one class, a <code>Predictor</code> subclass decorated with
             <code>@register("&lt;type&gt;")</code>, and <code>analysis.yaml</code> names that type in
-            <code>predictor.type</code>. The built-in type <code>jet_surrogate</code> (truth jets, per-jet probability,
-            Poisson-binomial event probability) needs no file.
+            <code>predictor.type</code>. The two library entries are worked examples: a truth-jet transformer with a
+            Poisson-binomial event probability (<code>emerging-jets-delphes</code>) and published scikit-learn
+            forests on displaced-vertex features (<code>atlas-exot-2022-04-calratio</code>).
           </p>
           <pre><code>from jet_surrogate.service.predictors import Predictor, finish_summary, register
 

@@ -14,7 +14,7 @@ body:
     attributes:
       label: Analysis id
       description: directory name under analyses/ (see the Analyses page)
-      value: emerging-jets-delphes
+      placeholder: for example atlas-exot-2022-04-calratio
     validations:
       required: true
   - type: input

@@ -71,7 +71,7 @@ pytorch-gpu = "*"
 cuda-version = "12.*"
 
 # Slim inference stack for the reinterpretation service (no Delphes/ROOT/Lightning):
-#   pixi install -e infer && pixi run -e infer jet-surrogate predict --hepmc ...
+#   pixi install -e infer && pixi run -e infer jet-surrogate predict --analysis <id> --hepmc ...
 [feature.infer.dependencies]
 python = "3.12.*"
 pythia8 = ">=8.312"          # particle table (charges) only

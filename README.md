@@ -169,7 +169,7 @@ and on seeds the tagger never saw.
 
 ```bash
 jet-surrogate generate --sample signal --ctau 0.1 --mpid 10 --nevents 10000 --format hepmc   # or any generator's HepMC2/3
-jet-surrogate predict --hepmc data/hepmc/signal_m10_ctau0.1mm_seed1.hepmc --model models/surrogate/surrogate.pt
+jet-surrogate predict --analysis emerging-jets-delphes --hepmc data/hepmc/signal_m10_ctau0.1mm_seed1.hepmc
 ```
 
 `predict` clusters truth jets from the generator record, applies the
@@ -200,17 +200,17 @@ once from their URL into `JS_ASSET_DIR`) and per-job choices under
 `options` (a selector on the submit page). `analyses/_template/` is the
 starting point. Entries: `emerging-jets-delphes` (the surrogate built here)
 and `atlas-exot-2022-04-calratio` (the ATLAS CalRatio search through the
-collaboration's published reinterpretation BDTs, Zenodo 12957031). Predictor types are registered in
-`service/registry.py`; `jet_surrogate` (truth jets, per-jet probability,
-Poisson-binomial event probability) is the first, and the example analysis
-`emerging-jets-delphes` is the surrogate built in this repository.
+collaboration's published reinterpretation BDTs, Zenodo 12957031). Each entry ships its own
+`predictor.py`; the service knows only the `Predictor` interface, so
+nothing outside `analyses/<id>/` is specific to a model or a physics
+scenario. The example `emerging-jets-delphes` is the surrogate built here.
 
 ```bash
 pixi install -e infer
 pixi run -e infer serve                 # http://localhost:8080: Carbon front end + JSON API (/api, /docs)
 pixi run -e infer worker                # second shell: runs queued jobs
 pixi run -e infer test-service          # end-to-end test on a tiny Pythia sample
-jet-surrogate predict --hepmc events.hepmc --analysis emerging-jets-delphes   # the same, from the command line
+jet-surrogate predict --analysis emerging-jets-delphes --hepmc events.hepmc   # the same, from the command line
 ```
 
 Jobs are queued in `JS_SERVICE_DIR` (SQLite + one directory per job) and

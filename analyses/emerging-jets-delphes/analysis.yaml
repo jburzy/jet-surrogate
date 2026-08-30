@@ -21,7 +21,7 @@ inputs:
   - Long-lived particles must be decayed by the generator (their decay products and vertices are what the surrogate reads).
   - Hadronization and decays switched on. No detector simulation.
 predictor:
-  type: jet_surrogate
+  type: emerging_jets_transformer
   model: surrogate.pt
 example: example.hepmc.gz          # 100 Pythia events, m(pi_d) = 10 GeV, ctau = 0.1 mm, for trying the service
 default_max_events: 20000

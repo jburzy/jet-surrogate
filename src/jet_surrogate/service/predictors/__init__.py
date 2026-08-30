@@ -15,7 +15,7 @@ threshold variant, analysis and model provenance).
 Adding a type: an analysis ships ``analyses/<id>/predictor.py`` with a
 registered class (the registry loads it for that analysis only), plus any
 dependency in the ``infer`` feature of ``pixi.toml`` and in the record's
-``requirements``. Types meant for many analyses can live in this package. The HepMC reader
+``requirements``. The HepMC reader
 (``jet_surrogate.hepmc_io.read_hepmc``) yields batches with every particle
 of every event (pid, status, mother/daughter links, kinematics, vertices),
 so a predictor is free to select whatever objects and features it needs.
@@ -78,7 +78,8 @@ def finish_summary(analysis, summary: dict, per_event: np.ndarray, *, objects: d
     if quantities:
         summary["quantities"] = list(quantities)
     summary.update({"analysis": analysis.id, "version": str(analysis.record["version"]),
-                    "model": analysis.record["predictor"]["model"], "predictor_type": analysis.predictor_type})
+                    "model": analysis.record["predictor"]["model"], "predictor_type": analysis.predictor_type,
+                    "signal_region": analysis.record.get("signal_region")})
     missing = [k for k in REQUIRED_SUMMARY if k not in summary]
     if missing:
         raise ValueError(f"predictor summary lacks {missing}")

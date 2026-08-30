@@ -143,7 +143,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
     }
     if (kind === 'jobs' && !id) {
       return fixtureJson('job.json').then(j => {
-        const running = Object.assign({}, j, { id: 'running00001', status: 'running', label: 'm_pid = 2 GeV, ctau = 1 mm', progress: '11200/20000 events', result: null, finished: null, created: j.created + 600, started: j.created + 610 });
+        const running = Object.assign({}, j, { id: 'running00001', status: 'running', label: 'benchmark point A', progress: '11200/20000 events', result: null, finished: null, created: j.created + 600, started: j.created + 610 });
         const failed = Object.assign({}, j, { id: 'failed000001', status: 'failed', label: '', progress: null, result: null, error: 'could not parse HepMC header', created: j.created - 900, started: j.created - 890, finished: j.created - 880 });
         return [running, j, failed];
       });
@@ -391,7 +391,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       '<p class="muted small" style="margin:0">Surrogate ' + esc(r.model || a.model && a.model.file || '') + (r.version ? ', version ' + esc(r.version) : '') + '</p>' +
       '</div>' +
       '<div class="result__cell">' + histogramSvg(r.histogram) +
-      '<p class="hist__caption">Each event gets a probability of entering the signal region, combined from the per-jet surrogate outputs. The efficiency is the mean of this distribution. The per-event values are in the HDF5 download.</p></div>' +
+      '<p class="hist__caption">Each event gets a probability of entering the signal region, computed by the predictor of this analysis. The efficiency is the mean of this distribution. The per-event values are in the HDF5 download.</p></div>' +
       '</div>' +
       '<p class="result__explain"><strong>What this number means.</strong> The efficiency is the predicted fraction of your events that would pass the selection of this analysis: ' + sr + ' The uncertainty is statistical (from the number of events you uploaded) and does not include the accuracy of the surrogate itself, which is documented on the analysis page.' +
       (r.sr_efficiency_threshold05 != null && r.objects ? ' The second efficiency counts an object as selected only when its probability is above 0.5, a cross-check that should agree with the main number when the surrogate is confident.' : '') + '</p>' +

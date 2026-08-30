@@ -346,7 +346,8 @@ touching src/analyses/Dockerfile (GHCR, package public); pick it up with
 of preserved analyses, each with its own surrogate, added by PR. Records
 live in `analyses/<id>/analysis.yaml` (+ model files, README.md model
 card, figures/); `service/registry.py` validates and loads them and maps
-`predictor.type` to a class (`PREDICTORS`, only `jet_surrogate` so far);
+`predictor.type` to the class defined in the analysis' own `predictor.py`
+(no built-in types: the emerging-jets predictor lives in its directory);
 the worker caches one predictor per analysis; `predict --analysis` uses the
 same registry. Nothing in the service or front end is specific to the
 emerging-jets surrogate, which is the example entry `emerging-jets-delphes`.

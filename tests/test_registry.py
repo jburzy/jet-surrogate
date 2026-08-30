@@ -20,7 +20,7 @@ def test_registry_loads_and_publishes():
     pub = lib["emerging-jets-delphes"].public(detail=True)
     for key in ("title", "signal_region", "inputs", "model", "figures", "description_html", "default_max_events"):
         assert key in pub
-    assert pub["model"]["type"] == "jet_surrogate"
+    assert pub["model"]["type"] == "emerging_jets_transformer"
 
 
 def test_invalid_record_is_reported(tmp_path):

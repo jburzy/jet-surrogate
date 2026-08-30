@@ -5,8 +5,8 @@ surrogate model files, a ``README.md`` model card and optional
 and the tests run on every record.
 
 A predictor turns a HepMC file into per-event signal-region probabilities.
-The interface lives in ``service/predictors/``; the built-in type is
-``jet_surrogate``. An analysis brings its own predictor as
+The interface lives in ``service/predictors/``; nothing else about a
+model is known to the service. An analysis brings its own predictor as
 ``analyses/<id>/predictor.py`` (a registered ``Predictor`` subclass, named
 by ``predictor.type``), keeping analysis-specific code out of the package;
 ``requirements`` lists the Python modules it needs.
