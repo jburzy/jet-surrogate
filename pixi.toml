@@ -91,6 +91,7 @@ uvicorn = "*"
 python-multipart = "*"
 httpx = "*"                  # API tests
 markdown = "*"               # analysis README rendering
+scikit-learn = "*"           # pickled sklearn surrogates (atlas-exot-2022-04-calratio)
 pytest = "*"
 [feature.infer.tasks]
 test-service = "pytest tests/test_service.py tests/test_predictor_plugin.py -v"     # pixi run -e infer test-service

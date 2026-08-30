@@ -1,0 +1,57 @@
+id: atlas-exot-2022-04-calratio
+title: Displaced hadronic jets in the ATLAS calorimeter with jets or leptons (ATLAS-EXOT-2022-04)
+short: The ATLAS Run 2 CalRatio search, reinterpreted with the collaboration's published per-event BDTs (Zenodo 12957031) that predict the ABCD-plane region efficiencies from the two long-lived particles.
+experiment: ATLAS
+status: preserved
+version: "1.0"
+updated: 2026-08-30
+contact: Jackson Burzynski <burzynski@ou.edu>
+tags: [long-lived particles, displaced jets, calorimeter, ABCD, BDT]
+references:
+  - {label: "ATLAS, JHEP 11 (2024) 036 (arXiv:2407.09183)", url: "https://arxiv.org/abs/2407.09183"}
+  - {label: "Reinterpretation BDTs on Zenodo (record 12957031)", url: "https://zenodo.org/records/12957031"}
+  - {label: "Corpe, Haddad, Goodsell, surrogate-model recast (arXiv:2502.10231)", url: "https://arxiv.org/abs/2502.10231"}
+  - {label: "ATLAS public results page EXOT-2022-04", url: "https://atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/PAPERS/EXOT-2022-04/"}
+signal_region: >-
+  Region A of the ABCD plane of the chosen selection (CR+2J for gluon-fusion-like production with two
+  additional jets, WHS low/high ET and WALP for associated production with a leptonically decaying W,
+  ZHS low/high ET for a leptonically decaying Z). The returned efficiency is the fraction of events the
+  published BDT assigns to region A, averaged over the sample. The region B, C and D efficiencies are
+  reported as extra quantities. The BDTs are valid when the mean decay position of the long-lived
+  particles falls in the calorimeters (0.25 to 16 m in Lxy for |eta| > 1.5, 0.75 to 28 m in |z| for
+  |eta| < 1.5). Outside this range the analysis authors return -1 and so does this predictor.
+inputs:
+  - HepMC2 or HepMC3 ASCII, generator level, 13 TeV pp, with the long-lived particles decayed by the generator (their decay vertices and decay products are the inputs).
+  - Exactly the topology of the selection: two long-lived neutral particles (one for the ALP selections), optionally with a W or Z boson in the record for the W/Z selections.
+  - Distances are read in mm or cm from the file and converted to metres; energies in GeV.
+predictor:
+  type: calratio_bdt
+  model: models                     # unpacked from the Zenodo tarballs into the assets directory
+  config:
+    llp_pdgids: [35, 36, 9000005, 9900026]   # candidate long-lived particle ids; the two most displaced decaying particles are used
+    boson_pdgids: [23, 24]
+    child_pdgid: null                 # force the "decay product" feature (5 = b quarks, 21 = gluons, 15 = taus); null infers it
+options:
+  - name: selection
+    label: Selection
+    choices: ["CR+2J", "WHS_lowET", "WHS_highET", "WALP", "ZHS_lowET", "ZHS_highET"]
+    default: "CR+2J"
+    help: CR+2J for gluon fusion (no vector boson), WHS/WALP for W+LLPs, ZHS for Z+LLPs; low/high ET by the LLP mass (roughly below or above 100 GeV).
+assets:
+  - {name: "CR+2J", url: "https://zenodo.org/api/records/12957031/files/CR+2J.tar.gz/content", extract: true}
+  - {name: "WHS_lowET", url: "https://zenodo.org/api/records/12957031/files/WHS_lowET.tar.gz/content", extract: true}
+  - {name: "WHS_highET", url: "https://zenodo.org/api/records/12957031/files/WHS_highET.tar.gz/content", extract: true}
+  - {name: "WALP", url: "https://zenodo.org/api/records/12957031/files/WALP.tar.gz/content", extract: true}
+  - {name: "ZHS_lowET", url: "https://zenodo.org/api/records/12957031/files/ZHS_lowET.tar.gz/content", extract: true}
+  - {name: "ZHS_highET", url: "https://zenodo.org/api/records/12957031/files/ZHS_highET.tar.gz/content", extract: true}
+requirements: [sklearn]
+default_max_events: 20000
+max_events: 100000
+training: >-
+  Random forests trained by the ATLAS analysis team on the full simulation of the signal grid
+  (scikit-learn 1.4.2, ten trees per selection), with per-event inputs the kinematics and decay
+  positions of the two long-lived particles, the identity of their decay products, and the vector
+  boson kinematics for the W and Z selections. Published as reinterpretation material with the paper.
+example: example.hepmc.gz          # 100 Pythia events, gg -> H(125) -> S(55) S(55) -> b bbar, ctau = 5.32 m
+validation: []
+figures: []

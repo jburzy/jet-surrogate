@@ -141,7 +141,8 @@ def generate_sample(sample: str, *, n_events: int, seed: int = 1,
 
 def generate_hepmc(sample: str, *, n_events: int, seed: int = 1, ctau_mm: float | None = None,
                    mpid: float = NOMINAL_MPID, lam: float | None = None, nflav: int | None = None,
-                   out_dir: str | Path = "data/hepmc") -> Path:
+                   out_dir: str | Path = "data/hepmc", card: str | Path | None = None,
+                   settings: list[str] | None = None) -> Path:
     """Standalone Pythia8 with the same card, written as HepMC3 (no detector
     simulation). This is the input format of ``jet-surrogate predict``."""
     import numpy as np
@@ -150,9 +151,16 @@ def generate_hepmc(sample: str, *, n_events: int, seed: int = 1, ctau_mm: float 
     from .hepmc_io import FIELDS, write_hepmc
 
     out_dir = Path(out_dir).resolve(); out_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)}_seed{seed}"
-    cmnd = write_card(sample, out_dir / f"{stem}.cmnd", n_events=n_events, seed=seed,
-                      ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)
+    if card is not None:                    # any user card: stem from the card name
+        stem = f"{Path(card).stem}_seed{seed}"
+        text = Path(card).read_text().rstrip() + "\n" + "\n".join(
+            ["", "! ---- overrides written by jet_surrogate.generate ----", f"Main:numberOfEvents = {n_events}",
+             f"Random:seed = {seed % 900000000}", *(settings or [])]) + "\n"
+        cmnd = out_dir / f"{stem}.cmnd"; cmnd.write_text(text)
+    else:
+        stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)}_seed{seed}"
+        cmnd = write_card(sample, out_dir / f"{stem}.cmnd", n_events=n_events, seed=seed,
+                          ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav)
     pythia = pythia8.Pythia("", False)
     pythia.readFile(str(cmnd))
     pythia.readString("Print:quiet = on")

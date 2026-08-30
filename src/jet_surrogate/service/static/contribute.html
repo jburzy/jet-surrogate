@@ -209,6 +209,16 @@ class MyBDT(Predictor):
             <code>analyses/_template/</code> directory is a complete starting point, and
             <code>tests/test_predictor_plugin.py</code> shows a whole toy analysis running through the service.
           </p>
+          <p>
+            Two more record keys cover common needs. <code>assets</code> lists large model files that should not
+            live in git (<code>{name, url, extract}</code>, for example Zenodo tarballs): they are downloaded once
+            into the service's asset directory and reached from the predictor as
+            <code>analysis.assets_dir / name</code>. <code>options</code> declares per-job choices
+            (<code>{name, label, choices, default, help}</code>), shown as a selector on the submit page and
+            passed to <code>run(..., options=...)</code>, for example which of several selections of a paper to
+            evaluate. The ATLAS CalRatio entry (<code>analyses/atlas-exot-2022-04-calratio/</code>) uses both:
+            its six published scikit-learn BDTs are fetched from Zenodo and the selection is a job option.
+          </p>
         </div>
       </section>
 </main>

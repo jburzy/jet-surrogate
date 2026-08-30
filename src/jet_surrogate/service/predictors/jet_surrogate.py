@@ -19,7 +19,7 @@ class JetSurrogatePredictor(Predictor):
         self.model, self.pre, _ = load_checkpoint(analysis.model_path, self.device)
         self.model.to(self.device)
 
-    def run(self, hepmc: Path, max_events: int, progress=None, chunk: int = 1000):
+    def run(self, hepmc: Path, max_events: int, progress=None, options=None, chunk: int = 1000):
         from ...commands.predict import predict_sample
         from ...hepmc_io import read_hepmc
         from ...skim import skim_truth

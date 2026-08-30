@@ -5,6 +5,7 @@ metadata:
 data:
   JS_SERVICE_DIR: /data
   JS_ANALYSES_DIR: /app/analyses
+  JS_ASSET_DIR: /data/assets          # downloaded model files (Zenodo etc.), shared by the workers
   JS_MAX_UPLOAD_MB: "2000"
   JS_MAX_EVENTS: "20000"
   JS_JOB_TTL_HOURS: "72"

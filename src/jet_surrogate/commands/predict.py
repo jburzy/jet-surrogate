@@ -32,6 +32,8 @@ def add_arguments(ap) -> None:
                     help="analysis id from the registry (analyses/<id>/analysis.yaml); its model is used unless --model is given")
     ap.add_argument("--model", default=None, help="explicit .pt or .ckpt (overrides --analysis)")
     ap.add_argument("--out", default="results/predict")
+    ap.add_argument("--option", action="append", default=[], metavar="NAME=VALUE",
+                    help="per-analysis option (see the analysis record), e.g. --option selection=CR+2J")
     ap.add_argument("--max-events", type=int, default=None)
     ap.add_argument("--chunk", type=int, default=2000)
     ap.add_argument("--device", default=None)
@@ -90,13 +92,21 @@ def run(args) -> None:
         a = registry.load(strict=False).get(args.analysis)
         if a is None:
             raise SystemExit(f"unknown analysis '{args.analysis}' (see analyses/); or pass --model")
+        if a.record.get("assets"):
+            a.fetch_assets()
         predictor = a.predictor(str(device))
+        options = dict(kv.split("=", 1) for kv in args.option)
+        for o in a.record.get("options", []):
+            options.setdefault(o["name"], o.get("default", o["choices"][0]))
+        from ..service.predictors import call_run
         for path in args.hepmc:
-            summary, per_event, extras = predictor.run(path, args.max_events or a.record.get("max_events", 10**9),
-                                                       progress=lambda m: print(f"  {path.name}: {m}", flush=True))
+            summary, per_event, extras = call_run(predictor, path, args.max_events or a.record.get("max_events", 10**9),
+                                                  progress=lambda m: print(f"  {path.name}: {m}", flush=True), options=options)
             summary["input"] = str(path)
             _write(out, f"{path.stem}_hepmc", summary, per_event, extras)
-        if args.skim and a.predictor_type != "jet_surrogate":
+        if not args.skim:
+            return
+        if a.predictor_type != "jet_surrogate":
             raise SystemExit("--skim inputs are only meaningful for jet_surrogate analyses")
         model, pre = predictor.model, predictor.pre
         model_path = a.model_path

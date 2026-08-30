@@ -4,7 +4,7 @@ signal-region probabilities. Each type is a class registered with
 
 Interface (``Predictor``):
     __init__(analysis, device="cpu")        load the model file(s) once
-    run(hepmc, max_events, progress=None)   -> (summary, per_event, extras)
+    run(hepmc, max_events, progress=None, options=None) -> (summary, per_event, extras)
 
 ``summary`` must contain the keys of ``REQUIRED_SUMMARY``; ``per_event`` is a
 float array of length n_events with the probability that each event enters
@@ -50,7 +50,9 @@ class Predictor:
     def __init__(self, analysis, device: str = "cpu"):
         self.analysis = analysis
 
-    def run(self, hepmc: Path, max_events: int, progress=None):
+    def run(self, hepmc: Path, max_events: int, progress=None, options: dict | None = None):
+        """``options`` are the per-job choices declared under ``options`` in
+        analysis.yaml (e.g. which selection), already validated by the app."""
         raise NotImplementedError
 
 
@@ -81,6 +83,15 @@ def finish_summary(analysis, summary: dict, per_event: np.ndarray, *, objects: d
     if missing:
         raise ValueError(f"predictor summary lacks {missing}")
     return summary
+
+
+def call_run(predictor, hepmc, max_events, progress=None, options=None):
+    """Invoke ``run`` with ``options`` only if the implementation accepts it."""
+    import inspect
+    params = inspect.signature(predictor.run).parameters
+    if "options" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return predictor.run(hepmc, max_events, progress, options=options or {})
+    return predictor.run(hepmc, max_events, progress)
 
 
 def load_all() -> dict[str, type]:

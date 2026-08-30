@@ -315,6 +315,24 @@ Preview chain with the preliminary tagger, isolated outputs:
 
 ## Reinterpretation service
 
+**Second library entry, 2026-08-30: `atlas-exot-2022-04-calratio`.** Wraps
+the six scikit-learn random forests published with the ATLAS CalRatio
+paper (Zenodo 12957031, sklearn 1.4.2 pickles loaded under 1.9 with the
+version warning suppressed). `predictor.py` builds the published CSV
+features from HepMC (per LLP: Lxy, |z| in m, eta, pT, ET = sqrt(pT^2+m^2),
+|pdg| of the decay product; W/Z pT, eta), applies the authors' validity
+guard (mean decay position in the calorimeters, else -1) and reports the
+region A efficiency plus B, C, D as quantities. Models are `assets`
+(downloaded from Zenodo into `JS_ASSET_DIR`, ~1 GB unpacked, symlinked on
+OSCER at `data/external/atlas-exot-2022-04-calratio`); the selection is a
+job `option`. Validation: our Pythia ggH -> S(55)S(55) -> bb sample
+(`cards/pythia/ggh_ss_bb.cmnd`, `generate --card`) gives effA 0.0007 vs
+0.0009 from the authors' CSV through the same model; feature means agree
+to ~10%. Gotcha: Pythia 8.312 writes the hadrons of a hadron-like LLP
+decay as direct daughters (no parton-level b quarks), whereas the authors'
+records had child_pdgId = 5, so the feature is inferred from the hadron
+content (b hadron -> 5, c -> 4, else 21) with a `child_pdgid` override.
+
 **Deployed 2026-08-29 evening** on CERN PaaS, project `prism`, site
 https://prism.web.cern.ch (`oc apply -k deploy/paas` from lxplus by the
 author; the PaaS API is not reachable from OSCER). Default quota is 1 CPU

@@ -572,6 +572,21 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
     const fileInput = $('#file-input');
     const fileInfo = $('#file-info');
     const labelInput = $('#label');
+    const optionsBox = $('#options-fields');
+    function renderOptions(a) {
+      if (!optionsBox) return;
+      optionsBox.innerHTML = (a.options || []).map(o =>
+        '<div class="field"><label for="opt-' + esc(o.name) + '">' + esc(o.label || o.name) + '</label>' +
+        '<select id="opt-' + esc(o.name) + '" data-option="' + esc(o.name) + '">' +
+        o.choices.map(c => '<option value="' + esc(c) + '"' + (c === (o.default || o.choices[0]) ? ' selected' : '') + '>' + esc(c) + '</option>').join('') +
+        '</select>' + (o.help ? '<p class="field__help">' + esc(o.help) + '</p>' : '') + '</div>').join('');
+    }
+    function collectOptions() {
+      if (!optionsBox) return null;
+      const out = {};
+      optionsBox.querySelectorAll('select[data-option]').forEach(el => { out[el.dataset.option] = el.value; });
+      return Object.keys(out).length ? out : null;
+    }
     const maxInput = $('#max-events');
     const maxHelp = $('#max-events-help');
     const btn = $('#submit-btn');
@@ -611,6 +626,7 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       analysisLink.hidden = false;
       maxInput.value = current.default_max_events || '';
       maxInput.max = current.max_events || '';
+      renderOptions(current);
       maxHelp.textContent = 'Only the first N events of the file are used. The limit for this analysis is ' + fmt.int(current.max_events) + ' events.';
       srText.textContent = 'Loading the signal-region definition.';
       apiGet('/analyses/' + encodeURIComponent(current.id)).then(a => {
@@ -674,6 +690,8 @@ window.JS_POLL_MS = window.JS_POLL_MS || 3000;
       fd.append('file', file, file.name);
       if (labelInput.value.trim()) fd.append('label', labelInput.value.trim().slice(0, 200));
       fd.append('max_events', String(maxEvents));
+      const opts = collectOptions();
+      if (opts) fd.append('options', JSON.stringify(opts));
 
       busy = true;
       btn.disabled = true;

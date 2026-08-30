@@ -27,7 +27,7 @@ def test_submit_and_process(hepmc, tmp_path, monkeypatch):
     client = TestClient(create_app())
     assert client.get("/health").json()["status"] == "ok"
     lib = client.get("/api/analyses").json()
-    assert lib and lib[0]["id"] == "emerging-jets-delphes"
+    assert "emerging-jets-delphes" in [x["id"] for x in lib]
     detail = client.get("/api/analyses/emerging-jets-delphes").json()
     assert detail["figures"] and "<" in detail["description_html"]
     assert client.get(f"/api/analyses/emerging-jets-delphes/figures/{detail['figures'][0]['file']}").status_code == 200

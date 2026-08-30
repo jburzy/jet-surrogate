@@ -15,7 +15,10 @@ from ..generate import CTAU_GRID_MM, NOMINAL_MPID, generate_hepmc, generate_samp
 
 
 def add_arguments(ap) -> None:
-    ap.add_argument("--sample", choices=["signal", "qcd"], required=True)
+    ap.add_argument("--sample", choices=["signal", "qcd"], default=None, help="built-in sample (or use --card)")
+    ap.add_argument("--card", default=None, help="any Pythia .cmnd card (HepMC output only): e.g. cards/pythia/ggh_ss_bb.cmnd")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="extra Pythia setting appended to the card, e.g. --set '35:tau0 = 5320'")
     ap.add_argument("--ctau", type=float, default=None, help="dark-pion ctau in mm")
     ap.add_argument("--grid", action="store_true", help="run the full ctau grid (signal)")
     ap.add_argument("--mpid", type=float, default=NOMINAL_MPID,
@@ -33,6 +36,15 @@ def add_arguments(ap) -> None:
 
 
 def run(args) -> None:
+    if args.card:
+        t0 = time.time()
+        out = generate_hepmc("card", n_events=args.nevents, seed=args.seed, card=args.card,
+                             settings=[x.replace("=", " = ", 1) if "=" in x and " = " not in x else x for x in args.set],
+                             out_dir=args.out if args.out != "data/delphes" else "data/hepmc")
+        print(f"wrote {out}  ({args.nevents} events, {time.time() - t0:.0f} s)", flush=True)
+        return
+    if args.sample is None:
+        raise SystemExit("--sample or --card is required")
     if args.sample == "signal":
         if args.grid:
             ctaus = list(CTAU_GRID_MM)

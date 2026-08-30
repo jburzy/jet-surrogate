@@ -30,3 +30,4 @@ slurm/skim_list.txt
 .DS_Store
 # the analysis library is versioned in full, including its figures and models
 !analyses/**
+analyses/*/.assets/

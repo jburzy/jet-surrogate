@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -56,13 +57,23 @@ def create_app() -> FastAPI:
 
     @app.post("/api/jobs")
     async def submit(analysis: str = Form(...), file: UploadFile = File(...), label: str = Form(""),
-                     max_events: int | None = Form(None)):
+                     max_events: int | None = Form(None), options: str | None = Form(None)):
         a = analyses.get(analysis)
         if a is None:
             raise HTTPException(400, f"unknown analysis '{analysis}'")
+        chosen = {}
+        try:
+            given = json.loads(options) if options else {}
+        except json.JSONDecodeError:
+            raise HTTPException(400, "options must be a JSON object")
+        for o in a.record.get("options", []):
+            v = given.get(o["name"], o.get("default", o["choices"][0]))
+            if v not in o["choices"]:
+                raise HTTPException(400, f"option '{o['name']}' must be one of {o['choices']}")
+            chosen[o["name"]] = v
         cap = min(cfg["max_events"], int(a.record.get("max_events", cfg["max_events"])))
         n = max(1, min(max_events or int(a.record.get("default_max_events", cap)), cap))
-        job = store.create(analysis, label[:200], file.filename or "upload", n)
+        job = store.create(analysis, label[:200], file.filename or "upload", n, chosen)
         dst = store.job_dir(job.id) / "input.dat"
         limit = int(cfg["max_upload_mb"] * 1e6)
         size = 0

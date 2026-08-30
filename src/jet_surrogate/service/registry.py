@@ -42,6 +42,41 @@ class Analysis:
         return self.predictor_cls(self, device)
 
     @property
+    def assets_dir(self) -> Path:
+        """Where downloaded assets (large model files declared under ``assets``) live:
+        JS_ASSET_DIR/<id> if set (the service PVC), else <analysis>/.assets (gitignored)."""
+        root = os.environ.get("JS_ASSET_DIR")
+        return (Path(root) / self.id) if root else (self.path / ".assets")
+
+    def fetch_assets(self, log=print) -> Path:
+        """Download and unpack every declared asset once; returns the assets directory."""
+        import hashlib
+        import shutil
+        import tarfile
+        import urllib.request
+        d = self.assets_dir; d.mkdir(parents=True, exist_ok=True)
+        for a in self.record.get("assets", []):
+            marker = d / f".{a['name']}.done"
+            if marker.exists():
+                continue
+            tmp = d / (a["name"] + ".download")
+            log(f"[{self.id}] downloading {a['url']}")
+            with urllib.request.urlopen(a["url"], timeout=120) as r, open(tmp, "wb") as f:
+                shutil.copyfileobj(r, f)
+            if a.get("sha256"):
+                h = hashlib.sha256(tmp.read_bytes()).hexdigest()
+                if h != a["sha256"]:
+                    tmp.unlink(); raise ValueError(f"{a['name']}: sha256 mismatch ({h})")
+            if a.get("extract", False):
+                with tarfile.open(tmp) as t:
+                    t.extractall(d / a["name"], filter="data")
+                tmp.unlink()
+            else:
+                tmp.rename(d / a["name"])
+            marker.write_text(a["url"])
+        return d
+
+    @property
     def example_path(self) -> Path | None:
         f = self.record.get("example")
         return (self.path / f) if f and (self.path / f).exists() else None
@@ -55,7 +90,8 @@ class Analysis:
                 "default_max_events": int(r.get("default_max_events", 20000)),
                 "max_events": int(r.get("max_events", 50000)),
                 "example_url": f"/api/analyses/{self.id}/example" if self.example_path else None,
-                "example_name": self.example_path.name if self.example_path else None}
+                "example_name": self.example_path.name if self.example_path else None,
+                "options": list(r.get("options", []))}
         if not detail:
             return base
         base.update({
@@ -137,8 +173,17 @@ def validate(path: Path) -> list[str]:
             importlib.import_module(req)
         except ImportError:
             problems.append(f"{path.name}: requirement '{req}' is not importable (add it to the infer feature of pixi.toml)")
-    if not pred.get("model") or not (path / pred["model"]).exists():
-        problems.append(f"{path.name}: predictor.model file '{pred.get('model')}' not found")
+    if not pred.get("model"):
+        problems.append(f"{path.name}: predictor.model missing")
+    elif not (path / pred["model"]).exists() and not r.get("assets"):
+        problems.append(f"{path.name}: predictor.model file '{pred['model']}' not found (declare it under assets if it is downloaded)")
+    for a in r.get("assets", []):
+        for k in ("name", "url"):
+            if k not in a:
+                problems.append(f"{path.name}: asset without '{k}'")
+    for o in r.get("options", []):
+        if not o.get("name") or not o.get("choices"):
+            problems.append(f"{path.name}: option needs 'name' and 'choices'")
     if r.get("example") and not (path / r["example"]).exists():
         problems.append(f"{path.name}: example file '{r['example']}' not found")
     for f in r.get("figures", []):

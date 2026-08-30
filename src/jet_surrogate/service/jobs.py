@@ -38,6 +38,7 @@ class Job:
     result: dict | None = None
     error: str | None = None
     progress: str | None = None
+    options: dict | None = None
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -51,7 +52,10 @@ class JobStore:
         with self._conn() as c:
             c.execute("""CREATE TABLE IF NOT EXISTS jobs (
                 id TEXT PRIMARY KEY, status TEXT, created REAL, analysis TEXT, label TEXT, source TEXT,
-                max_events INTEGER, started REAL, finished REAL, result TEXT, error TEXT, progress TEXT)""")
+                max_events INTEGER, started REAL, finished REAL, result TEXT, error TEXT, progress TEXT, options TEXT)""")
+            cols = [r[1] for r in c.execute("PRAGMA table_info(jobs)")]
+            if "options" not in cols:                       # migrate older job tables
+                c.execute("ALTER TABLE jobs ADD COLUMN options TEXT")
 
     def _conn(self):
         c = sqlite3.connect(self.db, timeout=30, isolation_level=None)
@@ -61,21 +65,22 @@ class JobStore:
     def job_dir(self, job_id: str) -> Path:
         return self.root / "jobs" / job_id
 
-    def create(self, analysis: str, label: str, source: str, max_events: int) -> Job:
-        job = Job(uuid.uuid4().hex[:12], "queued", time.time(), analysis, label, source, max_events)
+    def create(self, analysis: str, label: str, source: str, max_events: int, options: dict | None = None) -> Job:
+        job = Job(uuid.uuid4().hex[:12], "queued", time.time(), analysis, label, source, max_events, options=options)
         self.job_dir(job.id).mkdir(parents=True, exist_ok=True)
         with self._conn() as c:
-            c.execute("INSERT INTO jobs (id, status, created, analysis, label, source, max_events) VALUES (?,?,?,?,?,?,?)",
-                      (job.id, job.status, job.created, analysis, label, source, max_events))
+            c.execute("INSERT INTO jobs (id, status, created, analysis, label, source, max_events, options) VALUES (?,?,?,?,?,?,?,?)",
+                      (job.id, job.status, job.created, analysis, label, source, max_events, json.dumps(options or {})))
         return job
 
     def get(self, job_id: str) -> Job | None:
         with self._conn() as c:
             row = c.execute("SELECT id, status, created, analysis, label, source, max_events, started, finished, "
-                            "result, error, progress FROM jobs WHERE id = ?", (job_id,)).fetchone()
+                            "result, error, progress, options FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if row is None:
             return None
-        return Job(*row[:9], json.loads(row[9]) if row[9] else None, row[10], row[11])
+        return Job(*row[:9], json.loads(row[9]) if row[9] else None, row[10], row[11],
+                   json.loads(row[12]) if row[12] else None)
 
     def list(self, limit: int = 50) -> list[Job]:
         with self._conn() as c:

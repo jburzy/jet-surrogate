@@ -42,6 +42,8 @@ class Predictors:
             a = self.analyses.get(analysis_id)
             if a is None:
                 raise KeyError(f"unknown analysis '{analysis_id}'")
+            if a.record.get("assets"):
+                a.fetch_assets()
             self._cache[analysis_id] = a.predictor(self.device)
         return self._cache[analysis_id]
 
@@ -59,7 +61,10 @@ def run_job(store: JobStore, job, predictors: Predictors, max_events_cap: int) -
         def progress(msg):
             store.update(job.id, progress=msg); print(msg, file=log, flush=True)
 
-        summary, per_event, extras = predictor.run(hepmc, max_events, progress)
+        from .predictors import call_run
+        summary, per_event, extras = call_run(predictor, hepmc, max_events, progress, options=job.options or {})
+        if job.options:
+            summary["options"] = job.options
         out = job_dir / "results"; out.mkdir(exist_ok=True)
         (out / "summary.json").write_text(json.dumps(summary, indent=1))
         with h5py.File(out / "prediction.h5", "w") as h:

@@ -1,0 +1,31 @@
+! Gluon-fusion Higgs -> S S with S -> b bbar, long-lived S (CalRatio-like benchmark).
+! Default m(H) = 125 GeV, m(S) = 55 GeV, ctau(S) = 5.32 m; override with
+!   jet-surrogate generate --card cards/pythia/ggh_ss_bb.cmnd --set "35:m0 = 100" --set "35:tau0 = 1250"
+! Only used with --format hepmc / the generic-card path (no Delphes).
+
+Beams:idA = 2212
+Beams:idB = 2212
+Beams:eCM = 13000.
+
+HiggsSM:gg2H = on
+25:m0 = 125.
+25:onMode = off
+25:addChannel = 1 1.0 101 35 35
+
+35:m0 = 55.
+35:mWidth = 0.001
+35:tau0 = 5320.
+35:onMode = off
+35:addChannel = 1 1.0 101 5 -5
+35:mayDecay = on
+35:isResonance = false
+ParticleDecays:limitTau0 = off
+
+Random:setSeed = on
+Main:timesAllowErrors = 100
+Init:showChangedSettings = off
+Init:showChangedParticleData = off
+Next:numberCount = 0
+Next:numberShowEvent = 0
+Next:numberShowProcess = 0
+Next:numberShowInfo = 0

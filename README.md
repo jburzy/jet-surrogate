@@ -193,7 +193,14 @@ analyses/<analysis-id>/
 ```
 
 `tests/test_registry.py` (run by the `validate-analyses` workflow on every
-PR) checks each record. Predictor types are registered in
+PR) checks each record. An analysis brings its own inference code as
+`predictor.py` next to the record (a registered `Predictor` subclass named
+by `predictor.type`), may declare large model files under `assets` (fetched
+once from their URL into `JS_ASSET_DIR`) and per-job choices under
+`options` (a selector on the submit page). `analyses/_template/` is the
+starting point. Entries: `emerging-jets-delphes` (the surrogate built here)
+and `atlas-exot-2022-04-calratio` (the ATLAS CalRatio search through the
+collaboration's published reinterpretation BDTs, Zenodo 12957031). Predictor types are registered in
 `service/registry.py`; `jet_surrogate` (truth jets, per-jet probability,
 Poisson-binomial event probability) is the first, and the example analysis
 `emerging-jets-delphes` is the surrogate built in this repository.
