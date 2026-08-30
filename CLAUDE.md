@@ -207,6 +207,20 @@ surrogate on two masses and test on the third, lower the truth-jet
 threshold, weight rather than subsample QCD. Preview chain with the
 preliminary tagger (`results_prelim/`) gave the same picture.
 
+## Results, corrected-charge chain (2026-08-29 evening, `results/summary.md`)
+
+Tagger 33396091 (6 lifetimes): AUC 0.979, WP logit 4.81, jet eff at 1/1000
+0.250 / 0.708 / 0.815 / 0.909 / 0.928 / 0.947 for ctau 0.01 / 0.05 / 0.1 /
+0.5 / 1 / 5 mm. Surrogate 33400491 (signal only, seeds 35-54, PDG charges,
+early-stopped at epoch 2 with val 0.3907, AUC 0.868; patience raised to 10
+afterwards). SR efficiency predicted / actual: m5 test seeds 1.17, 0.98,
+0.94, 0.97, 0.96, 0.96; m10 1.32, 0.54, 0.70, 0.88, 0.91, 0.94; m2 4.1,
+1.60, 1.34, 1.09, 1.04, 1.04; Lambda scan (0.1 mm) 1.61, 0.99, (0.94),
+1.15, 1.69, 1.83 for m_pi/Lambda 0.2 .. 1.4; nFlav 2/3: 0.89 / 0.87. The
+prediction is flat in Lambda and nFlav (0.38-0.41) while the tagger varies
+0.22-0.44: the surrogate learned displacement, not shower structure.
+This model is the analysis-library entry `emerging-jets-delphes` v0.3.
+
 ## Lightning validation (2026-08-29, job 33396090, `models/validation/tagger`)
 
 Like-for-like with the plain-torch production tagger (same 2.18M jets, 3

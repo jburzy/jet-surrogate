@@ -41,6 +41,6 @@ trainer:
     - class_path: jet_surrogate.lightning.callbacks.SaveRunConfig
     - class_path: jet_surrogate.lightning.callbacks.EpochHistory
     - class_path: lightning.pytorch.callbacks.EarlyStopping
-      init_args: {monitor: val/loss, patience: 6, mode: min, min_delta: 1.0e-5}
+      init_args: {monitor: val/loss, patience: 10, mode: min, min_delta: 1.0e-5}
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
       init_args: {logging_interval: step}

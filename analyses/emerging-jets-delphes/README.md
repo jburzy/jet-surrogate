@@ -37,4 +37,4 @@ this first surrogate, which was trained at a single model point.
 | repository | https://github.com/jburzy/jet-surrogate |
 | training data | seeds 35 to 54 of the nominal signal, 6 lifetimes, 1.2M events |
 | tagger | seeds 1 to 24, working point on seeds 28 to 34 |
-| checkpoint | see `models/surrogate/run_dir.txt` in the training repository |
+| checkpoint | `logs/surrogate_20260829-T211530/ckpts/epoch=002-val_loss=0.39070.ckpt` in the training repository (version 0.3, particle charges from PDG ids) |
