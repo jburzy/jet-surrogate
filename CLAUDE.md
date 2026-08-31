@@ -221,6 +221,31 @@ prediction is flat in Lambda and nFlav (0.38-0.41) while the tagger varies
 0.22-0.44: the surrogate learned displacement, not shower structure.
 This model is the analysis-library entry `emerging-jets-delphes` v0.3.
 
+## Results, Lambda-augmented surrogate (2026-08-30, job 33410294 -> evaluate 33411517)
+
+Surrogate v0.4 candidate: trained on nominal seeds 35-54 (6 lifetimes) plus
+lam25/lam5 seeds 35-44 (6 lifetimes), 3.54M truth jets, signal only. Ran the
+full 30 epochs (best epoch 22, val loss 0.4238, AUC 0.867, calibrated:
+mean prob 0.6315 vs label 0.6311). Closure (pred/actual):
+
+- Lambda scan at 0.1 mm: 0.91 (0.2, trained), 0.81 (0.35 held out),
+  0.90 (0.5), 0.64 (0.7 held out), 0.88 (1.0, trained), 0.96 (1.4 held out).
+  Previously flat prediction (ratios 1.6-1.8 at the ends); now the
+  prediction tracks the Lambda dependence, with undershoot when
+  interpolating between trained points (worst 0.64 at 0.7).
+- Z' scan (2/2.5/3 TeV, never trained): ratios 0.88-0.98 for every
+  lifetime >= 0.05 mm at all three masses, same level as in-sample. The
+  pT dependence is learned. ctau = 0.01 mm degrades with mass
+  (1.2 -> 1.9), the known hard regime.
+- m2 improved a lot (1.97, 1.12, 1.08, 0.99, 0.99, 1.01 vs 4.1, 1.6,
+  1.34, 1.09, 1.04, 1.04 before); **m10 got worse** (0.59, 0.40, 0.53,
+  0.72, 0.77, 0.86 vs 1.32, 0.54, 0.70, 0.88, 0.91, 0.94): the
+  fewer/harder-dark-hadrons -> lower-efficiency lesson from the Lambda
+  scan at m5 misleads at m10, where harder hadrons come with high
+  efficiency. Multi-mass training (TRAIN_MZPS-style swap experiments,
+  or masses in training) is the indicated next step.
+- nFlav 2/3: 0.88 / 0.87 (was 0.89 / 0.87).
+
 ## Lightning validation (2026-08-29, job 33396090, `models/validation/tagger`)
 
 Like-for-like with the plain-torch production tagger (same 2.18M jets, 3

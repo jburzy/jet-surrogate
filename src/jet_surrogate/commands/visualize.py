@@ -81,18 +81,21 @@ def plot_closure(results: dict, out: Path) -> None:
     """One axis per figure: SR efficiency and its ratio per mass point,
     per-jet efficiency vs pT per mass point, and one calibration plot."""
     from ..plotting import MARKERS, color, decorate, plt, save
-    groups = defaultdict(dict)                  # mpid -> ctau -> result
+    groups = defaultdict(dict)                  # (mpid, mzp) -> ctau -> result
     for r in results.values():
         if r["sample"] == "signal" and r.get("lam", -1) <= 0 and r.get("nflav", -1) <= 0:
-            groups[r["mpid"]][r["ctau"]] = r
+            groups[(r["mpid"], r.get("mzp", -1))][r["ctau"]] = r
     sr_label = "SR: 2 jets, $p_T > 200$ GeV, tagger WP (1/1000)"
 
-    for m in sorted(groups):
-        cts = sorted(groups[m]); rs = [groups[m][c] for c in cts]
+    for m, mzp in sorted(groups):
+        key = (m, mzp)
+        cts = sorted(groups[key]); rs = [groups[key][c] for c in cts]
+        stem = f"m{m:g}" if mzp <= 0 else f"mzp{mzp:g}"
         x = np.arange(len(cts)); ticks = [f"{c:g}" for c in cts]
         a = np.array([r["sr_actual"] for r in rs]); ae = np.array([r["sr_actual_err"] for r in rs])
         p = np.array([r["sr_pred"] for r in rs]); pe = np.array([r["sr_pred_err"] for r in rs])
-        mass = f"$m_{{\\pi_d}}$ = {m:g} GeV ({_mass_tag(m)})"
+        mass = (f"$m_{{\\pi_d}}$ = {m:g} GeV ({_mass_tag(m)})" if mzp <= 0 else
+                f"$m_{{Z'}}$ = {mzp / 1000:g} TeV (unseen), $m_{{\\pi_d}}$ = {m:g} GeV")
 
         # --- SR efficiency with the predicted / actual ratio pad
         fig, (ax, axr) = plt.subplots(2, 1, figsize=(7, 7.5), sharex=True, height_ratios=[3, 1.1],
@@ -109,12 +112,12 @@ def plot_closure(results: dict, out: Path) -> None:
         axr.errorbar(x, ratio, rerr, fmt="s", mfc="white", color=color(1))
         axr.set_xticks(x, ticks); axr.set_xlim(-0.6, len(cts) - 0.4); axr.set_ylim(0.4, 1.6)
         axr.set_xlabel("dark-pion c$\\tau$ [mm]"); axr.set_ylabel("pred / actual")
-        save(fig, out / f"sr_efficiency_m{m:g}.png")
+        save(fig, out / f"sr_efficiency_{stem}.png")
 
         # --- per-jet efficiency vs truth jet pT
         fig, ax = plt.subplots(figsize=(7, 6))
         for i, c in enumerate(cts):
-            v = [b for b in groups[m][c]["vs_pt"] if b["hi"] <= 1000.0]
+            v = [b for b in groups[key][c]["vs_pt"] if b["hi"] <= 1000.0]
             if not v:
                 continue
             xc = [(b["lo"] + b["hi"]) / 2 for b in v]
@@ -134,13 +137,13 @@ def plot_closure(results: dict, out: Path) -> None:
         ax.legend([markers, dashed], ["detector level", "surrogate"], loc="upper right", fontsize=11,
                   bbox_to_anchor=(0.985, 0.80),
                   handler_map={tuple: HandlerTuple(ndivide=None, pad=0.6)}, handlelength=3.5)
-        save(fig, out / f"jet_eff_vs_pt_m{m:g}.png")
+        save(fig, out / f"jet_eff_vs_pt_{stem}.png")
 
         # --- calibration: marker area proportional to the bin population
         fig, ax = plt.subplots(figsize=(7, 6))
         ax.plot([0, 1], [0, 1], color="0.6", lw=0.8)
         for i, c in enumerate(cts):
-            cal = groups[m][c]["calibration"]
+            cal = groups[key][c]["calibration"]
             if not cal:
                 continue
             n = np.array([b["n"] for b in cal], float); frac = n / n.sum()
@@ -153,15 +156,15 @@ def plot_closure(results: dict, out: Path) -> None:
         ax.set_xlabel("surrogate probability"); ax.set_ylabel("observed pass fraction")
         decorate(ax, f"{mass}\nmarker area: fraction of jets in the bin")
         ax.legend(fontsize=11, loc="upper right")
-        save(fig, out / f"calibration_m{m:g}.png")
+        save(fig, out / f"calibration_{stem}.png")
 
         # --- surrogate output for tagged and untagged jets (if evaluate stored it)
-        if all("prob_hist" in groups[m][c] for c in cts):
+        if all("prob_hist" in groups[key][c] for c in cts):
             fig, ax = plt.subplots(figsize=(7, 6))
             for i, c in enumerate(cts):
-                hh = groups[m][c]["prob_hist"]; edges = np.array(hh["edges"])
-                for key, ls, lab in (("tagged", "-", "tagged"), ("untagged", "--", "untagged")):
-                    y = np.array(hh[key], float); y = y / max(y.sum(), 1) / np.diff(edges)
+                hh = groups[key][c]["prob_hist"]; edges = np.array(hh["edges"])
+                for branch, ls, lab in (("tagged", "-", "tagged"), ("untagged", "--", "untagged")):
+                    y = np.array(hh[branch], float); y = y / max(y.sum(), 1) / np.diff(edges)
                     ax.stairs(y, edges, color=color(i), ls=ls,
                               label=f"c$\\tau$ = {c:g} mm, {lab}")
             ax.set_yscale("log"); ax.set_xlim(0, 1)
@@ -169,7 +172,7 @@ def plot_closure(results: dict, out: Path) -> None:
             ymax = ax.get_ylim()[1]; ax.set_ylim(ax.get_ylim()[0], ymax * 1e3)
             decorate(ax, mass)
             ax.legend(fontsize=9, loc="upper right", ncol=1)
-            save(fig, out / f"surrogate_output_m{m:g}.png")
+            save(fig, out / f"surrogate_output_{stem}.png")
 
 
 def plot_variants(results: dict, out: Path) -> None:
