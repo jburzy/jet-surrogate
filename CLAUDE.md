@@ -375,6 +375,20 @@ models/tagger_mu60/tagger.pt`, `evaluate --mu 60 --out results_mu60`, and
 `shapes` comparisons pileup vs not. The surrogate keeps pileup-free truth
 inputs; only its labels change if retrained against the mu60 tagger.
 
+**Pileup gotcha (2026-08-31):** ~5%% of mu60 generation tasks die with a
+segmentation violation in `SimpleCalorimeter::Process()` within their first
+~30 events, never later, on random nodes, unreproducible solo. The library
+content is clean (big-endian XDR parse: no non-finite values; far-z decay
+products up to 2.4 km exist because the minbias card sets no
+ParticleDecays:limitCylinder, but injecting such particles does NOT crash
+Delphes). Best explanation: a cold-start stampede of ~100 tasks doing
+random reads on one shared .pileup file causes occasional short reads that
+DelphesPileUpReader does not check. Mitigation: staggered task starts in
+generate.sbatch plus --todo refills (a small refill wave never hits the
+problem). Libraries are staged on /scratch/jburzyns/minbias/ for speed
+(ourdisk random reads gave 2.2 s/event; canonical copies stay in
+data/minbias/).
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh

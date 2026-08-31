@@ -16,6 +16,10 @@ export PYTHONUNBUFFERED=1
 NEVENTS=${NEVENTS:-10000}
 MANIFEST=${MANIFEST:?set MANIFEST}
 # manifest line: <sample> <mpid|-> <ctau|-> <seed> [extra generate args, e.g. --lambda 25 or --nflav 2]
+# pileup tasks all hammer random reads on one shared library file; a cold-start
+# stampede of ~100 simultaneous opens produced sporadic short reads and Delphes
+# segfaults, so stagger the starts
+sleep $(( (SLURM_ARRAY_TASK_ID * 13) % 240 ))
 read -r SAMPLE MPID CTAU SEED EXTRA < <(sed -n "${SLURM_ARRAY_TASK_ID}p" "$MANIFEST")
 [[ -n ${SAMPLE:-} ]] || { echo "no manifest line $SLURM_ARRAY_TASK_ID"; exit 1; }
 ARGS=(--sample "$SAMPLE" --nevents "$NEVENTS" --seed "$SEED" --out "$REPO/data/delphes" --quiet)
