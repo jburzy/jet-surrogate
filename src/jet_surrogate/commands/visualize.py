@@ -31,7 +31,7 @@ def add_arguments(ap) -> None:
 
 
 def _mass_tag(m: float) -> str:
-    return "nominal, test seeds" if m == NOMINAL_MPID else "unseen mass point"
+    return "nominal, held-out sample" if m == NOMINAL_MPID else "unseen mass point"
 
 
 def plot_tagger_roc(tagger: Path, out: Path) -> None:
