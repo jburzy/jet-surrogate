@@ -27,6 +27,8 @@ def add_arguments(ap) -> None:
                     help="HiddenValley:Lambda in GeV at fixed masses (default: 2 m_pid, the nominal scaling)")
     ap.add_argument("--nflav", type=int, default=None, help="number of dark-quark flavours (default 1)")
     ap.add_argument("--mzp", type=float, default=None, help="Z' mass in GeV (default 1500)")
+    ap.add_argument("--mu", type=float, default=None, help="mean pileup: overlay Poisson(mu) minimum-bias events (Delphes path only)")
+    ap.add_argument("--pileup-library", default=None, help=".pileup library for --mu (data/minbias/MinBias_<role>.pileup)")
     ap.add_argument("--nevents", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--out", default="data/delphes")
@@ -66,5 +68,6 @@ def run(args) -> None:
         else:
             out = generate_sample(args.sample, n_events=args.nevents, seed=args.seed,
                                   ctau_mm=ctau, mpid=args.mpid, lam=args.lam, nflav=args.nflav,
-                                  mzp=args.mzp, out_dir=args.out, quiet=args.quiet)
+                                  mzp=args.mzp, mu=args.mu, pileup_library=args.pileup_library,
+                                  out_dir=args.out, quiet=args.quiet)
         print(f"wrote {out}  ({args.nevents} events, {time.time() - t0:.0f} s)", flush=True)

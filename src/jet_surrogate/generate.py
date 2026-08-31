@@ -37,11 +37,13 @@ DARK_RHO_OFFDIAG_ID = 4900213
 
 
 def sample_tag(sample: str, *, ctau_mm: float | None = None, mpid: float = NOMINAL_MPID,
-               lam: float | None = None, nflav: int | None = None, mzp: float | None = None) -> str:
+               lam: float | None = None, nflav: int | None = None, mzp: float | None = None,
+               mu: float | None = None) -> str:
     """Canonical file stem (without seed) for a sample point. Model variants
     (a non-nominal Lambda at fixed masses, or nFlav > 1) get a suffix."""
+    suffix = f"_mu{mu:g}" if mu is not None else ""
     if sample == "qcd":
-        return "qcd"
+        return "qcd" + suffix
     if sample == "signal":
         if ctau_mm is None:
             raise ValueError("signal requires ctau_mm")
@@ -52,7 +54,7 @@ def sample_tag(sample: str, *, ctau_mm: float | None = None, mpid: float = NOMIN
             tag += f"_nf{nflav:d}"
         if mzp is not None:
             tag += f"_mzp{mzp:g}"
-        return tag
+        return tag + suffix
     raise ValueError(f"unknown sample {sample!r}")
 
 
@@ -126,6 +128,7 @@ def write_card(sample: str, out_cmnd: Path, *, n_events: int, seed: int,
 def generate_sample(sample: str, *, n_events: int, seed: int = 1,
                     ctau_mm: float | None = None, mpid: float = NOMINAL_MPID,
                     lam: float | None = None, nflav: int | None = None, mzp: float | None = None,
+                    mu: float | None = None, pileup_library: str | Path | None = None,
                     out_dir: str | Path = "data/delphes",
                     delphes_card: Path = DELPHES_CARD, quiet: bool = False) -> Path:
     """Run DelphesPythia8 for one (sample, ctau, mass, seed). Returns the ROOT path."""
@@ -134,8 +137,16 @@ def generate_sample(sample: str, *, n_events: int, seed: int = 1,
         raise RuntimeError("DelphesPythia8 not on PATH: run inside `pixi run`")
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav, mzp=mzp)}_seed{seed}"
+    stem = f"{sample_tag(sample, ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav, mzp=mzp, mu=mu)}_seed{seed}"
     root = out_dir / f"{stem}.root"
+    if mu is not None:
+        if pileup_library is None:
+            raise ValueError("--mu needs --pileup-library (a .pileup file from hepmc2pileup)")
+        tpl = (CARD_DIR / "delphes" / "delphes_card_ATLAS_tracks_pileup.tcl").read_text()
+        tpl = tpl.replace("JS_PILEUP_FILE", str(Path(pileup_library).resolve()))
+        tpl = tpl.replace("JS_MEAN_PILEUP", f"{mu:g}")
+        delphes_card = out_dir / f"{stem}.card.tcl"
+        delphes_card.write_text(tpl)
     cmnd = write_card(sample, out_dir / f"{stem}.cmnd", n_events=n_events, seed=seed,
                       ctau_mm=ctau_mm, mpid=mpid, lam=lam, nflav=nflav, mzp=mzp)
     tmp = out_dir / f"{stem}.root.part"

@@ -55,6 +55,7 @@ class SkimFile:
     lam: float = -1.0        # -1: nominal Lambda scaling
     nflav: int = -1          # -1: nominal (one dark flavour)
     mzp: float = -1.0        # -1: nominal Z' mass (1.5 TeV)
+    mu: float = -1.0         # -1: no pileup overlay
 
     @property
     def variant(self) -> bool:
@@ -86,14 +87,17 @@ class SkimFile:
 
 
 def skim_files(data_dir: str | Path = "data/skim", *, samples=None, splits=None,
-               mpid=None, ctaus=None, require_scores: bool = False) -> list[SkimFile]:
+               mpid=None, ctaus=None, mu: float | None = None,
+               require_scores: bool = False) -> list[SkimFile]:
     """Discover skims, optionally filtered by sample / split / signal mass.
     ``require_scores`` drops (and reports) skims that apply-tagger has not
     scored yet, so a partially scored production never raises deep inside."""
     out, missing = [], []
     for p in sorted(Path(data_dir).glob("*.h5")):
         m = parse_stem(p.stem)
-        f = SkimFile(p, m["sample"], m["tag"], m["ctau"], m["mpid"], m["seed"], m["lam"], m["nflav"], m["mzp"])
+        f = SkimFile(p, m["sample"], m["tag"], m["ctau"], m["mpid"], m["seed"], m["lam"], m["nflav"], m["mzp"], m["mu"])
+        if f.mu != (-1.0 if mu is None else mu):
+            continue                       # pileup and no-pileup chains never mix
         if samples and f.sample not in samples:
             continue
         if splits and f.split not in splits:
