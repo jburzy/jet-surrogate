@@ -389,6 +389,23 @@ problem). Libraries are staged on /scratch/jburzyns/minbias/ for speed
 (ourdisk random reads gave 2.2 s/event; canonical copies stay in
 data/minbias/).
 
+**Pileup pilot results (2026-08-31, chain 33419975-79).** mu60 tagger
+(models/tagger_mu60, trained on 1.19M jets, 8/3/7 signal + 20/5/15 QCD
+subsamples, all overlaid): AUC 0.967 (vs 0.979), WP logit 5.99 (vs 4.81),
+jet eff at 1/1000: 0.111/0.517/0.663/0.805/0.834/0.867 (vs
+0.250/0.708/0.815/0.909/0.928/0.947). Part of the gap is statistics (1/3
+of the no-pileup training set). The pileup-blind surrogate evaluated
+against the mu60 tagger (results_mu60/) fails as expected: pred/actual
+12.8/1.63/1.15/0.97/0.94/0.91 across the lifetimes and per-jet AUC
+collapses to 0.54-0.63 (the long-lifetime event-level ratios look fine
+only because the efficiency saturates). Also the labels-only reference is
+now 13-16%% below actual (was 3-5%%): pileup promotes reco jets whose
+truth partner is below the 150 GeV truth threshold, so lowering that
+threshold matters more with pileup. Next for this thread: full mu60
+production (~6.4M events, ~600 CPU-h with the hardened array: stagger +
+in-task retry + libraries on /scratch), then retrain tagger at full
+statistics and the surrogate with mu60 labels (truth inputs unchanged).
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
