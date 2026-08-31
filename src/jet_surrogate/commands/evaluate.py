@@ -117,7 +117,8 @@ def run(args) -> None:
         print(f"{tag}: {len(fs)} files")
         r = evaluate_group(fs, model, pre, device)
         r.update({"tag": tag, "sample": fs[0].sample, "ctau": fs[0].ctau, "mpid": fs[0].mpid,
-                  "lam": fs[0].lam, "nflav": fs[0].nflav, "n_files": len(fs)})
+                  "lam": fs[0].lam, "nflav": fs[0].nflav, "mzp": fs[0].mzp, "mu": fs[0].mu,
+                  "n_files": len(fs)})
         results[tag] = r
     (out / "summary.json").write_text(json.dumps(results, indent=1))
     print(write_markdown(results, out / "summary.md"))
