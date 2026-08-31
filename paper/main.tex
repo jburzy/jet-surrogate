@@ -58,11 +58,13 @@ large-radius jets, a signal region is defined by two tagged jets at a
 working point of $10^{3}$ background rejection, and a second
 transformer operating only on the generator-level particles inside a
 jet is trained to predict the tagger decision. The surrogate
-reproduces the detector-level signal-region efficiency across dark-pion
-proper lifetimes from $0.01$ to $5$~mm, and generalizes to dark-pion
-masses and dark-sector couplings not seen during training to within
-\todo{X\%}, at a computational cost that bypasses detector simulation
-entirely. Nothing in the construction is specific to dark showers or to
+reproduces the detector-level signal-region efficiency to
+$5$--$10\%$ on held-out samples of its training models, across
+dark-pion proper lifetimes from $0.01$ to $5$~mm and a scan of the
+dark-sector fragmentation, and generalizes to mediator masses,
+dark-pion masses and dark couplings never seen in training to within
+$30\%$ across most of that model space, at a computational cost that
+bypasses detector simulation entirely. Nothing in the construction is specific to dark showers or to
 jets, and the same strategy applies to any analysis whose selection is a
 machine-learned function of low-level reconstructed objects, including
 event-level classifiers.}
@@ -481,9 +483,9 @@ least two large-radius jets with $\pT > 200$~GeV above the working
 point. Its efficiency $\effSR$ is the quantity the surrogate is asked
 to predict.
 
-Training stops after $26$ epochs, with the best validation loss at
-epoch $20$ and a validation accuracy of $0.934$. On the test sample the
-area under the ROC curve is $0.975$, and the ROC curves per lifetime
+Training stops after $21$ epochs, with the best validation loss at
+epoch $14$ and a validation accuracy of $0.935$. On the test sample the
+area under the ROC curve is $0.979$, and the ROC curves per lifetime
 are shown in Fig.~\ref{fig:roc}. The threshold at $10^{3}$ rejection
 gives the signal jet efficiencies of Table~\ref{tab:wp}.
 
@@ -500,12 +502,14 @@ gives the signal jet efficiencies of Table~\ref{tab:wp}.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{lccc}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lcccccc}
     \toprule
-    $\ctau(\pid)$ & $0.01$~mm & $0.1$~mm & $1$~mm \\
+    $\ctau(\pid)$ & $0.01$~mm & $0.05$~mm & $0.1$~mm & $0.5$~mm & $1$~mm & $5$~mm \\
     \midrule
-    signal jet efficiency at $1/10^{3}$ & $0.295 \pm 0.002$ & $0.802 \pm 0.001$ & $0.921 \pm 0.001$ \\
-    signal-region efficiency $\effSR$ & $0.048$ & $0.431$ & $0.545$ \\
+    jet efficiency at $1/10^{3}$ & $0.250$ & $0.708$ & $0.815$ & $0.909$ & $0.928$ & $0.947$ \\
+    signal-region efficiency $\effSR$ & $0.048$ & $0.333$ & $0.431$ & $0.525$ & $0.545$ & $0.550$ \\
     \bottomrule
   \end{tabular}
   \caption{Tagger performance at the working point on the nominal
@@ -585,10 +589,24 @@ response.
 
 \subsection{Closure on the training model}
 
-\stub{Predicted versus actual $\effSR$ for the nominal model on the
-test sample, per lifetime (Fig.~\ref{fig:sr}, left panel, and
-Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
-(Fig.~\ref{fig:jetpt}). Calibration curve (Fig.~\ref{fig:calib}).}
+On the held-out test sample of the nominal model the surrogate
+reproduces the signal-region efficiency to $5$--$10\%$ at every
+lifetime above $0.01$~mm, with the prediction consistently below the
+detector level (ratios $0.90$--$0.95$ in Table~\ref{tab:closure} and
+Fig.~\ref{fig:sr}). About half of that offset is the truth-level jet
+threshold: a Poisson-binomial reference built from the true
+detector-level labels of the same truth jets sits $3$--$5\%$ below the
+actual efficiency, because a small fraction of passing reconstructed
+jets have no truth partner above $150$~GeV. At $\ctau = 0.01$~mm the
+efficiency itself is only $0.05$ and the surrogate overshoots by
+$11\%$. In that regime the per-jet probabilities are far from $0$ and
+$1$, and thresholding them at $0.5$ predicts an efficiency of $0.003$,
+wrong by an order of magnitude, while the Poisson-binomial combination
+of Eq.~(\ref{eq:pb}) stays within $11\%$: the probabilistic
+combination is not an optional refinement but the difference between a
+usable and a useless prediction. The per-jet picture behind these
+numbers is in Fig.~\ref{fig:jetpt}, and the calibration of the
+probabilities themselves in Fig.~\ref{fig:calib}.
 
 \begin{figure}[htbp]
   \centering
@@ -614,24 +632,24 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
     \toprule
     $\mpid$ & $\ctau(\pid)$ & $\effSR$ actual & $\effSR$ predicted & pred./actual & jet AUC \\
     \midrule
-    $5$~GeV & $0.01$~mm & $0.048 \pm 0.001$ & $0.056 \pm 0.000$ & $1.17$ & $0.576$ \\
-     & $0.05$~mm & $0.333 \pm 0.002$ & $0.326 \pm 0.001$ & $0.98$ & $0.654$ \\
-     & $0.1$~mm & $0.431 \pm 0.002$ & $0.406 \pm 0.001$ & $0.94$ & $0.701$ \\
-     & $0.5$~mm & $0.525 \pm 0.002$ & $0.510 \pm 0.002$ & $0.97$ & $0.778$ \\
-     & $1$~mm & $0.545 \pm 0.002$ & $0.525 \pm 0.002$ & $0.96$ & $0.805$ \\
-     & $5$~mm & $0.550 \pm 0.002$ & $0.528 \pm 0.002$ & $0.96$ & $0.848$ \\
-    $10$~GeV & $0.01$~mm & $0.031 \pm 0.001$ & $0.041 \pm 0.000$ & $1.33$ & $0.566$ \\
-     & $0.05$~mm & $0.328 \pm 0.002$ & $0.176 \pm 0.001$ & $0.54$ & $0.633$ \\
-     & $0.1$~mm & $0.442 \pm 0.002$ & $0.307 \pm 0.001$ & $0.70$ & $0.690$ \\
-     & $0.5$~mm & $0.534 \pm 0.002$ & $0.468 \pm 0.002$ & $0.88$ & $0.782$ \\
-     & $1$~mm & $0.553 \pm 0.002$ & $0.504 \pm 0.002$ & $0.91$ & $0.808$ \\
-     & $5$~mm & $0.570 \pm 0.002$ & $0.533 \pm 0.002$ & $0.94$ & $0.842$ \\
-    $2$~GeV & $0.01$~mm & $0.046 \pm 0.001$ & $0.189 \pm 0.001$ & $4.12$ & $0.573$ \\
-     & $0.05$~mm & $0.262 \pm 0.002$ & $0.420 \pm 0.002$ & $1.60$ & $0.629$ \\
-     & $0.1$~mm & $0.356 \pm 0.002$ & $0.476 \pm 0.002$ & $1.34$ & $0.657$ \\
-     & $0.5$~mm & $0.484 \pm 0.002$ & $0.526 \pm 0.002$ & $1.09$ & $0.734$ \\
-     & $1$~mm & $0.513 \pm 0.002$ & $0.533 \pm 0.002$ & $1.04$ & $0.765$ \\
-     & $5$~mm & $0.483 \pm 0.002$ & $0.501 \pm 0.002$ & $1.04$ & $0.841$ \\
+    $5$~GeV & $0.01$~mm & $0.048 \pm 0.001$ & $0.053 \pm 0.001$ & $1.11$ & $0.592$ \\
+     & $0.05$~mm & $0.333 \pm 0.002$ & $0.316 \pm 0.001$ & $0.95$ & $0.659$ \\
+     & $0.1$~mm & $0.431 \pm 0.002$ & $0.388 \pm 0.001$ & $0.90$ & $0.704$ \\
+     & $0.5$~mm & $0.525 \pm 0.002$ & $0.497 \pm 0.002$ & $0.95$ & $0.780$ \\
+     & $1$~mm & $0.545 \pm 0.002$ & $0.514 \pm 0.002$ & $0.94$ & $0.805$ \\
+     & $5$~mm & $0.550 \pm 0.002$ & $0.524 \pm 0.002$ & $0.95$ & $0.851$ \\
+    $10$~GeV & $0.01$~mm & $0.031 \pm 0.001$ & $0.018 \pm 0.001$ & $0.59$ & $0.574$ \\
+     & $0.05$~mm & $0.328 \pm 0.002$ & $0.131 \pm 0.001$ & $0.40$ & $0.634$ \\
+     & $0.1$~mm & $0.442 \pm 0.002$ & $0.235 \pm 0.001$ & $0.53$ & $0.685$ \\
+     & $0.5$~mm & $0.534 \pm 0.002$ & $0.384 \pm 0.002$ & $0.72$ & $0.776$ \\
+     & $1$~mm & $0.553 \pm 0.002$ & $0.425 \pm 0.002$ & $0.77$ & $0.806$ \\
+     & $5$~mm & $0.570 \pm 0.002$ & $0.492 \pm 0.002$ & $0.86$ & $0.839$ \\
+    $2$~GeV & $0.01$~mm & $0.046 \pm 0.001$ & $0.090 \pm 0.001$ & $1.97$ & $0.571$ \\
+     & $0.05$~mm & $0.262 \pm 0.002$ & $0.293 \pm 0.001$ & $1.12$ & $0.620$ \\
+     & $0.1$~mm & $0.356 \pm 0.002$ & $0.384 \pm 0.002$ & $1.08$ & $0.653$ \\
+     & $0.5$~mm & $0.484 \pm 0.002$ & $0.479 \pm 0.002$ & $0.99$ & $0.728$ \\
+     & $1$~mm & $0.513 \pm 0.002$ & $0.509 \pm 0.002$ & $0.99$ & $0.759$ \\
+     & $5$~mm & $0.483 \pm 0.002$ & $0.486 \pm 0.002$ & $1.01$ & $0.841$ \\
     \bottomrule
   \end{tabular}
   \caption{Signal-region efficiency from the full detector-level chain
@@ -680,27 +698,136 @@ Table~\ref{tab:closure}). Per-jet efficiency versus truth jet $\pT$
 
 \subsection{Generalization to unseen dark-pion masses}
 
-\stub{Discussion of the center and right panels of Fig.~\ref{fig:sr}.
-The decision-gate criterion of a $30\%$ reproduction of the acceptance
-across held-out hypotheses. Which direction the surrogate errs, and
-whether the error is in the per-jet probabilities (calibration) or in
-the independence assumption of Eq.~(\ref{eq:pb}) (compare the
-labels-only Poisson-binomial reference).}
-
 The rescaled dark sectors change the multiplicity and the momentum
 sharing of the dark hadrons in a jet, and through the dark-pion boost
 the distribution of decay lengths at fixed proper lifetime. A surrogate
 that had merely memorized the nominal model would fail here in a
 characteristic way, predicting the nominal efficiency regardless of
-the mass. \todo{Describe what is observed.}
+the mass. That is not what happens: the predictions move with the mass,
+in the right direction, but not by the right amount. At
+$\mpid = 2$~GeV the surrogate closes to better than $12\%$ for every
+lifetime above $0.01$~mm. At $\mpid = 10$~GeV it undershoots, by
+$14\%$ at $5$~mm and by up to a factor $2.5$ at $0.05$~mm. The error
+is in the per-jet probabilities, not in the event-level combination:
+the labels-only Poisson-binomial reference closes at every point, so
+Eq.~(\ref{eq:pb}) is exact for practical purposes, and the calibration
+curves of Fig.~\ref{fig:calib} show the same off-diagonal bands that
+the ratios imply.
+
+The direction of the failure is instructive. In the
+$\mpid/\Lambda_{\mathrm{D}}$ scan of the training set, fewer and
+harder dark hadrons at fixed mass come with a lower tagger efficiency,
+and the surrogate has learned that association. The coherently rescaled
+$\mpid = 10$~GeV model also produces fewer and harder dark hadrons,
+but its tagger efficiency is high, because the displacement per hadron
+grows with the boost at fixed proper lifetime. Fragmentation and mass
+scale are entangled in the training set with a single dark-pion mass,
+and disentangling them requires a second mass in training, the same
+lesson at the next level of the parameter hierarchy that the
+fragmentation scan taught at the first. The mass points are therefore
+the natural next addition to the training mixture, and nothing in the
+method limits how many models enter it.
+
+\subsection{Generalization across the dark-sector parameters}
+
+The fragmentation scan is the direct test of the sample-design argument
+of Fig.~\ref{fig:samplespan}. A first surrogate trained on the nominal
+model alone, with only the lifetime varying, predicted an efficiency
+independent of $\mpid/\Lambda_{\mathrm{D}}$, with errors up to a
+factor $1.8$ at the ends of the scan: it had learned displacement and
+was blind to the structure of the shower. With the two fragmentation
+training points added, the prediction follows the measured dependence
+across the full scan (Fig.~\ref{fig:scans}a), closing to $4$--$12\%$
+at the trained points and at the outermost held-out point, and
+undershooting most, by $36\%$, at $\mpid/\Lambda_{\mathrm{D}} = 0.7$,
+halfway between two trained points, where the surrogate interpolates a
+steeper response than the detector shows. The dark-flavour variants
+barely change the detector-level efficiency and the surrogate agrees
+(Fig.~\ref{fig:scans}b, ratios $0.87$--$0.88$).
+
+The $Z'$ mass scan probes the momentum dependence with the dark sector
+held fixed, on models never used in training. Raising $m_{Z'}$ from
+$1.5$ to $3$~TeV hardens the dark-quark spectrum and cuts the
+signal-region efficiency by a factor of about $2.5$, mostly through the
+per-jet response of the tagger to the changed kinematics. The surrogate
+follows it: for every lifetime above $0.01$~mm the ratio of predicted
+to detector-level efficiency stays between $0.88$ and $0.98$ at all
+three masses (Fig.~\ref{fig:mzp}), the same level of closure as on the
+training model itself. The transverse-momentum dependence of the
+detector-level selection is learned, not memorized.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_scan_lambda.pdf}
+    \caption{}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_scan_nflav.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{Signal-region efficiency at $\mpid = 5$~GeV and
+  $\ctau = 0.1$~mm as a function of (a) the fragmentation ratio
+  $\mpid/\Lambda_{\mathrm{D}}$ and (b) the number of dark-quark
+  flavours, detector level versus surrogate.
+  Of the scan in (a), the points at $0.2$, $0.5$ and $1.0$ contribute
+  to the training mixture through independent samples, and the points
+  at $0.35$, $0.7$ and $1.4$ are entirely unseen.}
+  \label{fig:scans}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_mzp2000.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_mzp2500.pdf}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_mzp3000.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{Signal-region efficiency as a function of the dark-pion
+  lifetime for mediator masses never used in training, (a)
+  $m_{Z'} = 2$~TeV, (b) $2.5$~TeV and (c) $3$~TeV, detector level
+  versus surrogate, with the ratio in the lower pads.}
+  \label{fig:mzp}
+\end{figure}
 
 \subsection{What the surrogate learns}
 
-\stub{Ablation of the truth-level input groups: kinematics only,
-plus production and decay vertices, plus daughters, plus PDG
-embeddings. Dependence of the closure on the number of labeled
-training jets, which is the scaling behavior a pre-trained backbone
-would be measured against.}
+The scans also expose what the detector-level tagger itself uses,
+which is what the surrogate has to reproduce. Across the
+fragmentation scan the distribution of the track impact-parameter
+significance barely moves, and yet the tagger efficiency at a fixed
+number of displaced tracks in the jet shifts by up to $30$ percentage
+points between the ends of the scan (Fig.~\ref{fig:effdisp}). The
+tagger is not counting displaced tracks: it has learned a joint
+response to displacement and to the multiplicity and hardness of the
+jet, and any surrogate trained along a single line through that plane
+inherits a blind spot. This is the operational argument for training
+surrogates on samples that span the physics parameters the analysis
+response actually depends on, rather than on one benchmark with a
+lifetime grid.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.6\textwidth]{reco_eff_vs_n_displaced_lambda.pdf}
+  \caption{Detector-level tagger efficiency as a function of the
+  number of displaced tracks in the jet ($|\dnought|/\sigma > 3$),
+  across the fragmentation scan at $\ctau = 0.1$~mm. At a fixed
+  displaced-track multiplicity the efficiency moves by up to $30$
+  percentage points, so the tagger uses the structure of the jet
+  beyond its displacement.}
+  \label{fig:effdisp}
+\end{figure}
+
+\stub{Ablation of the truth-level input groups, and the dependence of
+the closure on the number of labeled training jets.}
 
 % =====================================================================
 \section{Conclusions}
@@ -717,7 +844,7 @@ quantity, is trained to predict the tagger decision, and its per-jet
 probabilities are combined into event-level signal-region efficiencies
 without further approximation.
 
-\todo{Headline numbers: closure on the training model, generalization
+\todo{Update if numbers move: closure on the training model, generalization
 to $\mpid = 10$ and $2$~GeV, calibration.}
 
 The results demonstrate that truth-level particle information is
