@@ -406,6 +406,20 @@ production (~6.4M events, ~600 CPU-h with the hardened array: stagger +
 in-task retry + libraries on /scratch), then retrain tagger at full
 statistics and the surrogate with mu60 labels (truth inputs unchanged).
 
+**mu60-retrained surrogate (2026-08-31, chain 33421698-701,
+models/surrogate_mu60, results_mu60/).** Same training composition as v0.4
+(3,541,476 truth jets, truth side bit-identical), labels from the mu60
+tagger on overlaid reco (label rate 0.564 vs 0.632). Converged at epoch 19,
+val loss 0.515 (noisier target, higher plateau). Closure vs the mu60
+detector: 1.34/0.85/0.75/0.82/0.82/0.84 (was 12.8/1.63/1.15/0.97/0.94/0.91
+pileup-blind). Key: the labels-only reference is itself 14-16%% below
+actual at mu60 (pileup promotes reco jets whose truth partner is below the
+150 GeV truth threshold), and the surrogate sits within ~1-11%% of that
+reference, i.e. it has absorbed essentially all of the learnable pileup
+response. The dominant remaining systematic is the truth-jet threshold,
+not the network. Fix: lower TRUTH_PT_MIN in skim.py (needs a re-skim from
+the kept ROOT files) for the pileup chain.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
