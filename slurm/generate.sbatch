@@ -28,7 +28,16 @@ ARGS=(--sample "$SAMPLE" --nevents "$NEVENTS" --seed "$SEED" --out "$REPO/data/d
 echo "host=$(hostname) job=$SLURM_JOB_ID task=$SLURM_ARRAY_TASK_ID sample=$SAMPLE mpid=$MPID ctau=$CTAU seed=$SEED extra=${EXTRA:-}"
 date
 GENLOG=$(mktemp -p "$REPO/data/delphes" .gen.XXXXXX)
-srun --chdir="$REPO" pixi run --manifest-path "$REPO/pixi.toml" jet-surrogate generate "${ARGS[@]}" | tee "$GENLOG"
+# Delphes with a shared pileup library crashes sporadically (unchecked short
+# reads under contention); retry instead of failing the task
+for attempt in 1 2 3; do
+    if srun --chdir="$REPO" pixi run --manifest-path "$REPO/pixi.toml" jet-surrogate generate "${ARGS[@]}" | tee "$GENLOG"; then
+        break
+    fi
+    echo "generate attempt $attempt failed; retrying"
+    sleep $((RANDOM % 60 + 30))
+    [[ $attempt == 3 ]] && { echo "generate failed 3 times"; exit 1; }
+done
 ROOT=$(sed -n 's/^wrote \(.*\.root\).*/\1/p' "$GENLOG" | tail -1); rm -f "$GENLOG"
 [[ -n $ROOT ]] || { echo "generate did not report an output file"; exit 1; }
 srun --chdir="$REPO" pixi run --manifest-path "$REPO/pixi.toml" jet-surrogate skim "$ROOT" --out "$REPO/data/skim"
