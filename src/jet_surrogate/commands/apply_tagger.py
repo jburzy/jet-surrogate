@@ -24,6 +24,7 @@ def add_arguments(ap) -> None:
     ap.add_argument("--model", default="models/tagger/tagger.pt")
     ap.add_argument("--out", default=SCORES_DIR)
     ap.add_argument("--device", default=None)
+    ap.add_argument("--mu", type=float, default=None, help="score the _mu<N> pileup skims instead of the no-pileup ones")
     ap.add_argument("--force", action="store_true", help="rescore files that already have scores")
     ap.add_argument("--max-files", type=int, default=None,
                     help="debug: keep the first N skims of every (sample point, split)")
@@ -35,7 +36,7 @@ def run(args) -> None:
     model.to(device)
     thr = float(extra["working_point"]["threshold_logit"])
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
-    files = skim_files(args.data)
+    files = skim_files(args.data, mu=args.mu)
     if args.max_files:
         seen: dict = {}
         files = [f for f in files if seen.setdefault((f.tag, f.split), [0])[0] < args.max_files

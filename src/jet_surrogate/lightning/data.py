@@ -67,7 +67,7 @@ class JetDataModule(LightningDataModule):
     def __init__(self, task: str = "tagger", data_dir: str = "data/skim", batch_size: int = 512,
                  num_workers: int = 0, fit_files: int = 6, max_jets_per_file: int | None = None,
                  qcd_jets_per_file: int = 0, val_frac: float = 0.1, max_files: int | None = None,
-                 ctaus: list[float] | None = None, seed: int = 0):
+                 ctaus: list[float] | None = None, mu: float | None = None, seed: int = 0):
         super().__init__()
         assert task in ("tagger", "surrogate")
         self.save_hyperparameters()
@@ -85,10 +85,10 @@ class JetDataModule(LightningDataModule):
         h = self.hparams
         if self.task == "tagger":
             fs = skim_files(h.data_dir, samples=("qcd", "signal"), splits=(split,), mpid=NOMINAL_MPID,
-                            ctaus=h.ctaus)
+                            ctaus=h.ctaus, mu=h.mu)
         else:
             fs = skim_files(h.data_dir, samples=("qcd", "signal"), splits=("surrogate", "train", "val"),
-                            mpid=NOMINAL_MPID, ctaus=h.ctaus, require_scores=True)
+                            mpid=NOMINAL_MPID, ctaus=h.ctaus, mu=h.mu, require_scores=True)
             # signal: only the dedicated surrogate seeds (disjoint from the tagger's); QCD, if
             # mixed in at all, may come from the tagger's train/val seeds (it never sees labels)
             fs = [f for f in fs if f.sample == "qcd" or f.split == "surrogate"]

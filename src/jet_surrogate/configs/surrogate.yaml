@@ -21,6 +21,7 @@ data:
   val_frac: 0.1
   max_files: null         # debug cap, per sample and split
   ctaus: null             # restrict the signal lifetimes, e.g. [0.01, 0.1, 1]
+  mu: null                # labels from the pileup tagger: null = no-pileup skims (the surrogate truth side is always pileup-free)
 
 trainer:
   max_epochs: 30

@@ -353,6 +353,28 @@ a new surrogate means a pull request to PRISM with the new `surrogate.pt`,
 figures, validation table and version. Leftovers on OSCER from the
 CalRatio work: `data/external/calratio`, `data/test/calratio`.
 
+## Pileup chain (2026-08-30/31, in progress)
+
+Minimum-bias libraries on ourdisk (`data/minbias/`): `MinBias_train.pileup`
+4M events / 27.6 GB, `MinBias_val.pileup` 250k, `MinBias_test.pileup` 750k
+(SoftQCD:inelastic, HepMC2 via `generate --card cards/pythia/minbias.cmnd
+--format hepmc --hepmc2`, merged with hepmc2pileup; role-disjoint so the
+working point cannot exploit pileup events seen in training). Overlay:
+`cards/delphes/delphes_card_ATLAS_tracks_pileup.tcl` (PileUpMerger first in
+the ExecutionPath; truth jets and the Particle branch stay hard-scatter
+only) instantiated per run by `generate --mu 60 --pileup-library <lib>`;
+stems get `_mu60` and `skim_files(mu=...)` keeps the chains separate
+(default: no-pileup only). Cost: ~0.9 s/event at mu = 60 (vs 0.02), so
+generation arrays need `--time=06:00:00` and `--mem=8G`.
+
+Pilot (array 33417585, 148 x 10k events): signal 8 train + 3 val + 7 test
+subsamples x 6 lifetimes, QCD 20/5/15, each drawing from its role library.
+When done: `sbatch slurm/gpu.sbatch train-tagger --out models/tagger_mu60
+--data.mu=60`, then `apply-tagger --mu 60 --model
+models/tagger_mu60/tagger.pt`, `evaluate --mu 60 --out results_mu60`, and
+`shapes` comparisons pileup vs not. The surrogate keeps pileup-free truth
+inputs; only its labels change if retrained against the mu60 tagger.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh

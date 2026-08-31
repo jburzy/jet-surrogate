@@ -20,6 +20,7 @@ data:
   max_jets_per_file: null
   max_files: null         # debug cap, per sample and split
   ctaus: null             # restrict the signal lifetimes, e.g. [0.01, 0.1, 1]
+  mu: null                # pileup chain: train on the _mu<N> skims (e.g. 60); null = no-pileup skims
 
 trainer:
   max_epochs: 30

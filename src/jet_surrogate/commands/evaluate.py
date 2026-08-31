@@ -35,6 +35,7 @@ def add_arguments(ap) -> None:
     ap.add_argument("--model", default="models/surrogate/surrogate.pt")
     ap.add_argument("--out", default="results")
     ap.add_argument("--device", default=None)
+    ap.add_argument("--mu", type=float, default=None, help="evaluate the _mu<N> pileup chain instead of the no-pileup one")
     ap.add_argument("--max-files", type=int, default=None, help="debug: cap files per sample point")
 
 
@@ -109,7 +110,7 @@ def run(args) -> None:
     model, pre, extra = load_checkpoint(args.model, device)
     model.to(device)
     groups: dict[str, list] = defaultdict(list)
-    for f in skim_files(args.data, splits=("test",), require_scores=True):
+    for f in skim_files(args.data, splits=("test",), mu=args.mu, require_scores=True):
         groups[f.tag].append(f)
     results = {}
     for tag in sorted(groups):
