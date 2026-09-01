@@ -146,7 +146,7 @@ def test_longitudinal_features_are_relative_to_the_primary_vertex():
     ref = None
     for pv in (0.0, 50.0, -120.0):                      # the same event, placed anywhere in z
         part = _toy_record(z_stable=pv + 1.0, z_decayed=pv + 1.0)
-        cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv=F.primary_vertex_z(part))
+        cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv_z=F.primary_vertex_z(part))
         got = np.array([cols["prod_z"], cols["decay_z"], cols["decay_len"]])
         if ref is None:
             ref = got
@@ -164,6 +164,11 @@ def test_delphes_pileup_vertex_shift_is_repaired():
     jets = np.zeros(1, dtype=np.dtype([("pt", "f4"), ("eta", "f4"), ("phi", "f4"), ("mass", "f4"),
                                        ("nsub", "i4"), ("event", "i4"), ("match", "i4"), ("n_assoc", "i4")]))
     jets["pt"] = 100.0
+    import awkward as ak
+
+    from jet_surrogate.delphes_io import _repair_pileup_vertex_shift
+
     part = _toy_record(z_stable=60.0, z_decayed=0.0)     # only the stable particles were moved
-    cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv=F.primary_vertex_z(part))
+    part = _repair_pileup_vertex_shift(part, np.array([60.0], dtype=np.float32))
+    cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv_z=F.primary_vertex_z(part))
     assert cols["decay_len"][0] < 1e-3, f"prompt hadron given a flight length of {cols['decay_len'][0]} mm"

@@ -42,6 +42,7 @@ set ExecutionPath {
 
   Calorimeter
   EFlowMerger
+  Rho
   EFlowFilter
   
   PhotonEfficiency
@@ -63,6 +64,7 @@ set ExecutionPath {
   GenMissingET
 
   FastJetFinder
+  JetPileUpSubtractor
 
   JetEnergyScale
 
@@ -768,14 +770,50 @@ module Merger GenMissingET {
 # Jet finder
 ############
 
+#############
+# Rho pile-up: median transverse momentum density per unit area, estimated on a
+# grid so that the few cells holding the hard jets do not bias it
+#############
+
+module FastJetGridMedianEstimator Rho {
+  set InputArray EFlowMerger/eflow
+  set RhoOutputArray rho
+
+  # add GridRange rapmin rapmax drap dphi
+  add GridRange -5.0 -2.5 1.0 1.0
+  add GridRange -2.5 2.5 0.5 0.5
+  add GridRange 2.5 5.0 1.0 1.0
+}
+
 module FastJetFinder FastJetFinder {
   set InputArray EFlowMerger/eflow
 
   set OutputArray jets
 
+  # active area with ghosts, needed for the pile-up subtraction below
+  set AreaAlgorithm 5
+
   # algorithm: 1 CDFJetClu, 2 MidPoint, 3 SIScone, 4 kt, 5 Cambridge/Aachen, 6 antikt
   set JetAlgorithm 6
   set ParameterR 0.4
+
+  set JetPTMin 20.0
+}
+
+###########################
+# Jet pile-up subtraction: pT -> pT - rho * A, dropping what falls below the
+# threshold, which is what removes the jets built purely from pile-up before
+# they are reclustered into the large-R jets. Pile-up constituents inside real
+# jets are deliberately kept, and no TrackPileUpSubtractor is used: its
+# vertex-compatibility cut would discard the displaced signal tracks this
+# analysis is built on.
+###########################
+
+module JetPileUpSubtractor JetPileUpSubtractor {
+  set JetInputArray FastJetFinder/jets
+  set RhoInputArray Rho/rho
+
+  set OutputArray jets
 
   set JetPTMin 20.0
 }
@@ -785,7 +823,7 @@ module FastJetFinder FastJetFinder {
 ##################
 
 module EnergyScale JetEnergyScale {
-  set InputArray FastJetFinder/jets
+  set InputArray JetPileUpSubtractor/jets
   set OutputArray jets
 
   # scale formula for jets
@@ -898,5 +936,7 @@ module TreeWriter TreeWriter {
   add Branch GenJetFinder/jets GenJet Jet
   add Branch UniqueObjectFinder/jets Jet Jet
   add Branch MissingET/momentum MissingET MissingET
+  add Branch PileUpMerger/vertices Vertex Vertex
+  add Branch Rho/rho Rho Rho
 }
 

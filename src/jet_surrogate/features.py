@@ -98,41 +98,29 @@ def charges_from_pid(pid: np.ndarray) -> np.ndarray:
     return np.array([pdg_charge(int(i)) for i in ids], dtype=np.float32)[inv]
 
 
-def primary_vertex_z(part) -> tuple[np.ndarray, np.ndarray]:
-    """Per-event z of the primary interaction, estimated separately for stable
-    particles and for the rest of the record.
+def primary_vertex_z(part) -> np.ndarray:
+    """Per-event z of the primary interaction, the median production z of the
+    prompt particles (those made within 1 mm of the beamline).
 
-    Every z-dependent feature is measured relative to this vertex, so that the
-    same physics event gives the same inputs wherever it was placed along the
-    beamline. Without that, a signal simulated with pileup and the same signal
-    simulated without it would not give the same surrogate prediction.
-
-    Two estimates are needed because Delphes' ``PileUpMerger`` displaces the
-    hard scatter in z but only touches the objects in its input array (the
-    stable particles), leaving decayed and intermediate particles at the
-    unshifted vertex. Referring each group to its own vertex repairs that
-    inconsistency, and on a self-consistent record (no pileup, or a generator
-    HepMC file) the two estimates coincide and this is simply a beam-spot
-    subtraction.
+    Every longitudinal quantity is measured from this point, so the features do
+    not depend on where along the beamline the event was placed. Without that,
+    a model simulated with pile-up and the same model simulated without it
+    would not give the same surrogate inputs, and a generator file uploaded to
+    the service would be scored out of distribution.
     """
     import awkward as ak
     n = ak.to_numpy(ak.num(part.pt))
     p = ak.flatten(part)
     z = ak.to_numpy(p.z)
-    prompt = np.hypot(ak.to_numpy(p.x), ak.to_numpy(p.y)) < 1.0     # produced at the interaction point
-    stable = ak.to_numpy(p.status) == 1
+    prompt = np.hypot(ak.to_numpy(p.x), ak.to_numpy(p.y)) < 1.0
     ev = np.repeat(np.arange(len(n)), n)
-    out = []
-    for group in (stable, ~stable):
-        pv = np.zeros(len(n), dtype=np.float32)
-        sel = group & prompt
-        if sel.any():
-            order = np.lexsort((z[sel], ev[sel]))
-            e, zz = ev[sel][order], z[sel][order]
-            _, start, cnt = np.unique(e, return_index=True, return_counts=True)
-            pv[np.unique(e)] = zz[start + cnt // 2]                  # per-event median
-        out.append(pv)
-    return out[0], out[1]
+    pv = np.zeros(len(n), dtype=np.float32)
+    if prompt.any():
+        order = np.lexsort((z[prompt], ev[prompt]))
+        e, zz = ev[prompt][order], z[prompt][order]
+        _, start, cnt = np.unique(e, return_index=True, return_counts=True)
+        pv[np.unique(e)] = zz[start + cnt // 2]
+    return pv
 
 
 def padded_dtype(floats, cats):
@@ -194,12 +182,12 @@ def track_columns(trk: ak.Array, jet_id: np.ndarray, jets: np.ndarray,
 
 # ---------------------------------------------------------------- truth particles
 def particle_columns(part: ak.Array, jet_id: np.ndarray, jets: np.ndarray,
-                     pv: tuple[np.ndarray, np.ndarray] | None = None) -> tuple[dict, np.ndarray]:
+                     pv_z: np.ndarray | None = None) -> tuple[dict, np.ndarray]:
     """Flat per-particle feature columns (status 1 or 2, pT > PART_PT_MIN, not
-    a neutrino) relative to the associated truth large-R jet. ``pv`` is the
-    pair returned by ``primary_vertex_z``; every z is referred to it, so that
-    production and decay vertices, and hence flight lengths, do not depend on
-    where the event sits along the beamline."""
+    a neutrino) relative to the associated truth large-R jet. ``pv_z`` is the
+    per-event primary vertex; every z is referred to it, so that production and
+    decay vertices, and hence flight lengths, do not depend on where the event
+    sits along the beamline."""
     n = ak.to_numpy(ak.num(part.pt))
     off = np.concatenate([[0], np.cumsum(n)])
     p = ak.flatten(part)
@@ -211,8 +199,8 @@ def particle_columns(part: ak.Array, jet_id: np.ndarray, jets: np.ndarray,
     x = ak.to_numpy(p.x); y = ak.to_numpy(p.y); z = ak.to_numpy(p.z)
     d1 = ak.to_numpy(p.d1); d2 = ak.to_numpy(p.d2)
     ev = np.repeat(np.arange(len(n)), n)
-    if pv is not None:
-        z = z - np.where(status == 1, pv[0][ev], pv[1][ev])
+    if pv_z is not None:
+        z = z - pv_z[ev]
     # Delphes stores HepMC-style status for SM particles (1 stable, 2 decayed
     # hadron/tau) but keeps raw Pythia codes for dark hadrons: 81-89 from
     # fragmentation, 91-99 from decays. Keep every stable particle and every

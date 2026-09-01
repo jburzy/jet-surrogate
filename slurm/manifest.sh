@@ -66,4 +66,27 @@ mzoutfile() { printf '%s/signal_m5_ctau%gmm_mzp%s_seed%d.root' "$DATA" "$1" "$2"
     echo "signal 5 $c $s --mzp $z"
   done; done; done
 } > "$DIR/manifest_mzp.txt"
+# Full mu = 60 replica of the whole no-pileup programme, each sample drawing
+# from the minimum-bias library matching its role so the working point cannot
+# exploit pileup events seen in training.
+LIB=${LIB:-/scratch/jburzyns/minbias}
+mu() { echo "--mu 60 --pileup-library $LIB/MinBias_$1.pileup"; }
+{ for c in $CTAUS; do
+    for s in $(seq 1 24)  $(seq 35 54); do echo "signal 5 $c $s $(mu train)"; done
+    for s in $(seq 25 27);                do echo "signal 5 $c $s $(mu val)";   done
+    for s in $(seq 28 34);                do echo "signal 5 $c $s $(mu test)";  done
+    for m in $TEST_MPIDS; do for s in $(seq 1 5); do echo "signal $m $c $s $(mu test)"; done; done
+    for z in 2000 2500 3000; do for s in $(seq 1 5); do echo "signal 5 $c $s --mzp $z $(mu test)"; done; done
+  done
+  for s in $(seq 1 60);   do echo "qcd - - $s $(mu train)"; done
+  for s in $(seq 61 70);  do echo "qcd - - $s $(mu val)";   done
+  for s in $(seq 71 100); do echo "qcd - - $s $(mu test)";  done
+  for l in 25 5; do
+    for c in $CTAUS; do for s in $(seq 35 44); do echo "signal 5 $c $s --lambda $l $(mu train)"; done; done
+    for s in $(seq 1 5); do echo "signal 5 $VARIANT_CTAU $s --lambda $l $(mu test)"; done
+  done
+  for l in 14.3 7.1 3.6; do for s in $(seq 1 5); do echo "signal 5 $VARIANT_CTAU $s --lambda $l $(mu test)"; done; done
+  for n in $VARIANT_NFLAVS; do for s in $(seq 1 5); do echo "signal 5 $VARIANT_CTAU $s --nflav $n $(mu test)"; done; done
+} > "$DIR/manifest_mu60.txt"
+
 for f in "$DIR"/manifest_*.txt; do printf '%-50s %5d jobs\n' "$f" "$(wc -l < "$f")"; done
