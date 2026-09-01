@@ -420,6 +420,36 @@ response. The dominant remaining systematic is the truth-jet threshold,
 not the network. Fix: lower TRUTH_PT_MIN in skim.py (needs a re-skim from
 the kept ROOT files) for the pileup chain.
 
+## BUG: scrambled truth<->reco match indices (found and fixed 2026-08-31)
+
+`skim_file` offsets the per-chunk `event` column but never offset the
+`match` column, which is a *row index* into the other jet collection. With
+chunk = 2000 and 10k-event files, only the first 20%% of every skim had a
+valid truth<->reco pairing; the other 80%% pointed at unrelated jets in
+other events. Measured on signal_m5_ctau0.1mm_seed28: fraction of matched
+truth jets whose partner is in the same event 0.199 -> 1.000 after the fix.
+
+Consequence for the labels-only reference (SR efficiency a perfect
+surrogate would give): no pileup -3.8%% -> -0.1%%, mu60 -16.2%% -> -1.1%%.
+So the "truth-jet threshold" explanation written into CLAUDE.md and the
+paper on 2026-08-30/31 was WRONG: the threshold costs ~0.1%% (no pileup)
+and ~1.1%% (mu60), the rest was this bug.
+
+INVALID until re-run: every surrogate (labels ~80%% noise with the right
+marginal, which is why they still half-worked), every `sr_pred`/`jet_auc`/
+calibration number in results/ and results_mu60/, the closure table and
+generalization discussion in the paper, the `truth_eff_vs_*` panels of
+`shapes`, and the PRISM entry emerging-jets-delphes v0.3.
+STILL VALID: all generation and Delphes output, both taggers (they never
+read `match`: they train on reco jets with the sample label), their ROC,
+working points and jet efficiencies, every `sr_actual`, the
+`reco_eff_vs_*` panels, and all PRISM infrastructure.
+
+Recovery (2026-08-31): reskim 33472937 (1482 files) -> apply-tagger
+33472995 (nominal) / 33472996 (mu60) -> train-surrogate 33472997 / 33472998
+-> evaluate 33472999 / 33473000. Taggers are NOT retrained. Regression test:
+`tests/test_pipeline.py::test_skim_chunks_keep_match_indices_consistent`.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
