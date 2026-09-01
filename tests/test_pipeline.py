@@ -112,3 +112,58 @@ def test_skim_chunks_keep_match_indices_consistent(tmp_path):
     assert (tj["event"][ok] == rj["event"][tj["match"][ok]]).all()
     okr = rj["match"] >= 0
     assert (rj["event"][okr] == tj["event"][rj["match"][okr]]).all()
+
+
+def _toy_record(z_stable, z_decayed):
+    """One event: a hadron that decays to two stable daughters, plus a spectator.
+    ``z_stable`` and ``z_decayed`` place the two groups along the beamline."""
+    import awkward as ak
+
+    #            hadron(status 2)   daughter   daughter   spectator
+    pid = [[321, 211, -211, 211]]
+    status = [[2, 1, 1, 1]]
+    z = [[z_decayed, z_stable, z_stable, z_stable]]
+    one = lambda v: [[v] * 4]
+    return ak.zip({
+        "pid": pid, "status": status,
+        "pt": one(10.0), "eta": one(0.1), "phi": one(0.2), "e": one(12.0), "mass": one(0.5),
+        "x": one(0.0), "y": one(0.0), "z": z,
+        "d1": [[1, -1, -1, -1]], "d2": [[2, -1, -1, -1]],
+    })
+
+
+def test_longitudinal_features_are_relative_to_the_primary_vertex():
+    """A signal simulated with a displaced beam spot must give the same truth
+    features as the same signal simulated at the origin, or a theorist's
+    pileup-free sample would not reproduce our pileup training inputs."""
+    import numpy as np
+
+    from jet_surrogate import features as F
+
+    jets = np.zeros(1, dtype=np.dtype([("pt", "f4"), ("eta", "f4"), ("phi", "f4"), ("mass", "f4"),
+                                       ("nsub", "i4"), ("event", "i4"), ("match", "i4"), ("n_assoc", "i4")]))
+    jets["pt"] = 100.0
+    ref = None
+    for pv in (0.0, 50.0, -120.0):                      # the same event, placed anywhere in z
+        part = _toy_record(z_stable=pv + 1.0, z_decayed=pv + 1.0)
+        cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv=F.primary_vertex_z(part))
+        got = np.array([cols["prod_z"], cols["decay_z"], cols["decay_len"]])
+        if ref is None:
+            ref = got
+        assert np.allclose(got, ref, atol=1e-4), f"features moved with the beam spot at pv={pv}"
+
+
+def test_delphes_pileup_vertex_shift_is_repaired():
+    """Delphes' PileUpMerger displaces only the stable particles, leaving decayed
+    ones at the unshifted vertex, which would give prompt hadrons a spurious
+    flight length of tens of mm (bug found 2026-09-01)."""
+    import numpy as np
+
+    from jet_surrogate import features as F
+
+    jets = np.zeros(1, dtype=np.dtype([("pt", "f4"), ("eta", "f4"), ("phi", "f4"), ("mass", "f4"),
+                                       ("nsub", "i4"), ("event", "i4"), ("match", "i4"), ("n_assoc", "i4")]))
+    jets["pt"] = 100.0
+    part = _toy_record(z_stable=60.0, z_decayed=0.0)     # only the stable particles were moved
+    cols, _ = F.particle_columns(part, np.zeros(4, np.int64), jets, pv=F.primary_vertex_z(part))
+    assert cols["decay_len"][0] < 1e-3, f"prompt hadron given a flight length of {cols['decay_len'][0]} mm"

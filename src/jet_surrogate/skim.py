@@ -55,7 +55,7 @@ def skim_truth(part: ak.Array) -> tuple[np.ndarray, np.ndarray]:
     truth = recluster_large_r(small_r_jets_from_particles(part), pt_min=TRUTH_PT_MIN)
     part_jet = associate(part, truth)
     truth_jets = jet_table(truth, np.full(len(truth), -1, np.int32), np.zeros(len(truth), np.int32))
-    pcols, part_jet = F.particle_columns(part, part_jet, truth_jets)
+    pcols, part_jet = F.particle_columns(part, part_jet, truth_jets, pv=F.primary_vertex_z(part))
     truth_jets["n_assoc"] = np.bincount(part_jet[part_jet >= 0], minlength=len(truth))
     truth_parts = F.pad_groups(part_jet, len(truth), pcols["pt"], pcols, F.MAX_PART,
                                F.PART_FLOATS, F.PART_CATS)
@@ -70,10 +70,12 @@ def skim_events(ev: ak.Array) -> dict:
     truth = recluster_large_r(small_r_jets_from_particles(ev.part), pt_min=TRUTH_PT_MIN)
     r2t, t2r = match_jets(reco, truth)
 
+    pv = F.primary_vertex_z(ev.part)          # everything longitudinal is measured from here
+
     # tracks -> reco jets
     trk_jet = associate(ev.trk, reco)
     reco_jets = jet_table(reco, r2t, np.zeros(len(reco), np.int32))
-    tcols, trk_jet = F.track_columns(ev.trk, trk_jet, reco_jets)
+    tcols, trk_jet = F.track_columns(ev.trk, trk_jet, reco_jets, pv_z=pv[0])
     reco_jets["n_assoc"] = np.bincount(trk_jet[trk_jet >= 0], minlength=len(reco))
     reco_tracks = F.pad_groups(trk_jet, len(reco), tcols["pt"], tcols, F.MAX_TRK,
                                F.TRACK_FLOATS, F.TRACK_CATS)
@@ -81,7 +83,7 @@ def skim_events(ev: ak.Array) -> dict:
     # generator particles -> truth jets
     part_jet = associate(ev.part, truth)
     truth_jets = jet_table(truth, t2r, np.zeros(len(truth), np.int32))
-    pcols, part_jet = F.particle_columns(ev.part, part_jet, truth_jets)
+    pcols, part_jet = F.particle_columns(ev.part, part_jet, truth_jets, pv=pv)
     truth_jets["n_assoc"] = np.bincount(part_jet[part_jet >= 0], minlength=len(truth))
     truth_parts = F.pad_groups(part_jet, len(truth), pcols["pt"], pcols, F.MAX_PART,
                                F.PART_FLOATS, F.PART_CATS)

@@ -450,6 +450,46 @@ Recovery (2026-08-31): reskim 33472937 (1482 files) -> apply-tagger
 -> evaluate 33472999 / 33473000. Taggers are NOT retrained. Regression test:
 `tests/test_pipeline.py::test_skim_chunks_keep_match_indices_consistent`.
 
+## BUG: pileup vertex shift corrupted the truth features (found and fixed 2026-09-01)
+
+Delphes' `PileUpMerger` displaces the hard scatter along z (our card samples
+sigma_z = 53 mm) but modifies only the candidates in its input array, the
+*stable* particles. Decayed hadrons, intermediate partons and the dark
+hadrons keep the unshifted vertex, so the record we write is internally
+inconsistent: a status-2 hadron sits at z = 0 while its status-1 daughters
+sit at z = dz. Since the decay vertex is taken from the first daughter's
+production point, every prompt SM hadron acquired a flight length of order
+|dz|. Measured on signal_m5_ctau0.1mm_seed28, median decay_len of decayed
+SM hadrons: 0.0001 mm without pileup, **34.4 mm at mu = 60**, while dark
+hadrons stayed at 0.402 mm. The discriminating feature was inverted, with
+prompt hadrons looking far more displaced than the dark pions.
+
+Fix: `features.primary_vertex_z` estimates the interaction point per event
+as the median production z of prompt (lxy < 1 mm) particles, separately for
+stable particles and for the rest of the record, and every longitudinal
+quantity is referred to it. Track z0 is measured from the primary vertex,
+as in the experiments, rather than from the origin. On a self-consistent
+record (no pileup, or a generator HepMC file) the two estimates coincide
+and this is a plain beam-spot subtraction, which is what makes the
+surrogate's inputs the same whether or not the uploader simulated pileup.
+Without it a theorist's pileup-free sample would be served out of
+distribution by a pileup-trained surrogate.
+
+After the fix, truth features agree between the two chains to 1e-4 (SM
+decay_len 0.0001 mm both, dark 0.4045 mm both). The no-pileup chain is
+unchanged in practice (median difference exactly 0, max 0.37 mm in rare
+events), so its tagger and surrogate stay valid. Reco track z0 at mu = 60
+now has the hard-scatter tracks at z0 ~ 0 and pileup tracks spread over
+sigma_z, which is the ATLAS-like configuration the tagger should exploit.
+Regression tests: `test_longitudinal_features_are_relative_to_the_primary_vertex`
+and `test_delphes_pileup_vertex_shift_is_repaired`.
+
+INVALID: everything in the mu = 60 chain produced before this date, namely
+`models/tagger_mu60`, its working point and efficiency table,
+`models/surrogate_mu60` and `results_mu60/`. The mu60 surrogate training
+(33472998) was cancelled mid-flight. NOT affected: the no-pileup chain, all
+generation, and the pileup libraries.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
