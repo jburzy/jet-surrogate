@@ -95,13 +95,21 @@ def skim_file(root: str | Path, out: str | Path, chunk: int = 2000, max_events: 
     from .delphes_io import n_events as _n
     n_tot = _n(root) if max_events is None else min(max_events, _n(root))
     parts = {k: [] for k in ("reco_jets", "reco_tracks", "truth_jets", "truth_parts")}
-    done = 0
+    done = n_reco = n_truth = 0
     while done < n_tot:
         stop = min(done + chunk, n_tot)
         ev = read_delphes(root, stop)[done:stop]
         res = skim_events(ev)
         for k in ("reco_jets", "truth_jets"):
             res[k]["event"] += done
+        # ``match`` is a row index into the other collection, local to this chunk:
+        # offset it by the rows already written, or after concatenation every jet
+        # past the first chunk points at an unrelated jet in another event
+        m = res["reco_jets"]["match"]
+        res["reco_jets"]["match"] = np.where(m >= 0, m + n_truth, -1)
+        m = res["truth_jets"]["match"]
+        res["truth_jets"]["match"] = np.where(m >= 0, m + n_reco, -1)
+        n_reco += len(res["reco_jets"]); n_truth += len(res["truth_jets"])
         for k in parts:
             parts[k].append(res[k])
         done = stop

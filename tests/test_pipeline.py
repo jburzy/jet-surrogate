@@ -2,6 +2,8 @@
 
 import awkward as ak
 import numpy as np
+from pathlib import Path
+
 import pytest
 
 from jet_surrogate import features as F
@@ -88,3 +90,25 @@ def test_threshold_at_rejection():
 
 def test_delta_phi_wraps():
     assert delta_phi(3.1, -3.1) == pytest.approx(-0.0831853, abs=1e-6)
+
+
+def test_skim_chunks_keep_match_indices_consistent(tmp_path):
+    """Regression: ``match`` is a row index into the other jet collection and
+    must be offset per chunk, or every jet past the first chunk points at an
+    unrelated jet in another event (bug found 2026-08-31)."""
+    import h5py
+    import numpy as np
+
+    from jet_surrogate.skim import skim_file
+
+    root = next(iter(sorted(Path("data/delphes").glob("signal_m5_ctau0.1mm_seed28.root"))), None)
+    if root is None:
+        pytest.skip("no Delphes file available")
+    out = skim_file(root, tmp_path / "s.h5", chunk=200, max_events=1000)
+    with h5py.File(out) as h:
+        tj, rj = h["truth_jets"][...], h["reco_jets"][...]
+    ok = tj["match"] >= 0
+    assert ok.sum() > 0
+    assert (tj["event"][ok] == rj["event"][tj["match"][ok]]).all()
+    okr = rj["match"] >= 0
+    assert (rj["event"][okr] == tj["event"][rj["match"][okr]]).all()

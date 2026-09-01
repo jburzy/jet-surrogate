@@ -96,6 +96,9 @@ def plot_closure(results: dict, out: Path) -> None:
         p = np.array([r["sr_pred"] for r in rs]); pe = np.array([r["sr_pred_err"] for r in rs])
         mass = (f"$m_{{\\pi_d}}$ = {m:g} GeV ({_mass_tag(m)})" if mzp <= 0 else
                 f"$m_{{Z'}}$ = {mzp / 1000:g} TeV (unseen), $m_{{\\pi_d}}$ = {m:g} GeV")
+        mu = rs[0].get("mu", -1)
+        if mu and mu > 0:
+            mass += f", $\\langle\\mu\\rangle$ = {mu:g} pileup"
 
         # --- SR efficiency with the predicted / actual ratio pad
         fig, (ax, axr) = plt.subplots(2, 1, figsize=(7, 7.5), sharex=True, height_ratios=[3, 1.1],
