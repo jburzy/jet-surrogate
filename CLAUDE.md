@@ -490,6 +490,31 @@ INVALID: everything in the mu = 60 chain produced before this date, namely
 (33472998) was cancelled mid-flight. NOT affected: the no-pileup chain, all
 generation, and the pileup libraries.
 
+## Results, no-pileup chain after the match-index fix (2026-09-01, 33472997 -> 33472999)
+
+Same training composition as v0.4 (nominal surrogate seeds + lam25/lam5,
+3.54M truth jets), the only change being correct labels. Best epoch 24,
+val loss 0.1845 (was 0.4238), per-jet **AUC 0.978 (was 0.867)**, calibrated
+(mean prob 0.6325 vs label 0.6306). Closure, pred/actual, with the
+corrupted-label value in brackets:
+
+- nominal m5: 1.12 [1.11], 1.03 [0.95], 1.01 [0.90], 1.00 [0.95],
+  1.00 [0.94], 0.99 [0.95] for ctau 0.01 .. 5 mm. Closure is now
+  0-3%% everywhere above 0.01 mm.
+- Lambda scan at 0.1 mm: 0.98, 1.01, 1.01, 1.03, 1.00 across
+  m_pi/Lambda = 0.2 .. 1.4 (was 0.91, 0.81, 0.90, 0.64, 0.96). The
+  held-out point at 0.7 that used to sit at 0.64 now closes to 1.03.
+- Z' scan (never trained): 1.00-1.06 at every mass and every lifetime
+  >= 0.05 mm; only ctau = 0.01 mm reaches 1.15.
+- nFlav 2/3: 1.01 / 1.01 (was 0.88 / 0.87).
+- m2 still over-predicts at short lifetime (1.89, 1.34, 1.19 then
+  1.03-1.06) and **m10 still under-predicts** (0.48, 0.73, 0.85, 0.95,
+  0.96, 0.99), so the mass extrapolation remains the one open direction
+  and multi-mass training is still the indicated fix. Everything else
+  closes at the percent level.
+- Per-jet AUC is now 0.92-0.997 across all samples (was 0.57-0.87), so
+  the surrogate resolves individual jets rather than only sample means.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
