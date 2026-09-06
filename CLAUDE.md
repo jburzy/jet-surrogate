@@ -515,6 +515,39 @@ corrupted-label value in brackets:
 - Per-jet AUC is now 0.92-0.997 across all samples (was 0.57-0.87), so
   the surrogate resolves individual jets rather than only sample means.
 
+## Results, full mu = 60 chain (2026-09-02, jobs 33485289-93)
+
+Full-statistics replica of the no-pileup programme: 729 files / 7.29M events
+with jet-area pileup subtraction (Rho + AreaAlgorithm 5 +
+JetPileUpSubtractor), the Vertex branch, and all longitudinal features
+referred to the primary vertex. Generation 727/729 (2 transient failures,
+all 729 skims present).
+
+**Pileup costs the tagger almost nothing once the reconstruction is right.**
+AUC 0.9790 vs 0.9795 without pileup; working-point logit 4.841 vs 4.812;
+jet efficiency at 1/1000 rejection:
+
+| ctau | 0.01 | 0.05 | 0.1 | 0.5 | 1 | 5 mm |
+|---|---|---|---|---|---|---|
+| mu = 60 | 0.231 | 0.691 | 0.804 | 0.904 | 0.924 | 0.944 |
+| no pileup | 0.250 | 0.708 | 0.815 | 0.909 | 0.928 | 0.947 |
+
+The pilot's apparent collapse (0.111 / 0.517 / 0.663 / ...) was almost
+entirely the missing jet-area subtraction plus the corrupted truth features,
+not pileup. Do not quote the pilot numbers anywhere.
+
+**The surrogate absorbs pileup.** Closure at mu = 60, pred/actual, with the
+no-pileup value in brackets: nominal m5 1.13 [1.12], 1.04 [1.03],
+1.02 [1.01], 1.00 [1.00], 1.00 [1.00], 1.00 [0.99]. Lambda scan
+0.98-1.04 [0.98-1.03]. nFlav 1.01 / 1.02 [1.01 / 1.01]. Z' scan 1.00-1.08
+for ctau >= 0.05 mm at all three masses, degrading only at 0.01 mm
+(1.14 / 1.21 / 1.33). Per-jet AUC 0.92-0.995 (0.92-0.997 without pileup).
+
+**Still open, and unchanged by pileup:** mass extrapolation. m10 under-predicts
+(0.38, 0.68, 0.82, 0.94, 0.96, 0.99) and m2 over-predicts at short lifetime
+(2.74, 1.51, 1.28, then 1.05-1.08). ctau = 0.01 mm is the hard regime
+everywhere. Multi-mass training remains the indicated fix.
+
 ## Next steps
 
 1. Corrected-charge surrogate (33400491) -> evaluate (33400492): refresh
