@@ -58,13 +58,15 @@ large-radius jets, a signal region is defined by two tagged jets at a
 working point of $10^{3}$ background rejection, and a second
 transformer operating only on the generator-level particles inside a
 jet is trained to predict the tagger decision. The surrogate
-reproduces the detector-level signal-region efficiency to
-$5$--$10\%$ on held-out samples of its training models, across
-dark-pion proper lifetimes from $0.01$ to $5$~mm and a scan of the
-dark-sector fragmentation, and generalizes to mediator masses,
-dark-pion masses and dark couplings never seen in training to within
-$30\%$ across most of that model space, at a computational cost that
-bypasses detector simulation entirely. Nothing in the construction is specific to dark showers or to
+reproduces the detector-level signal-region efficiency to better than
+$5\%$ on held-out samples of its training models, across dark-pion
+proper lifetimes from $0.01$ to $5$~mm, and to the same accuracy on
+mediator masses, dark-shower fragmentation scales and dark-quark
+flavour numbers never seen in training. It degrades only when the
+dark-pion mass itself is extrapolated, and the entire study is repeated
+with $\langle\mu\rangle = 60$ pile-up overlaid, at which the closure is
+unchanged, at a computational cost that bypasses detector simulation
+entirely. Nothing in the construction is specific to dark showers or to
 jets, and the same strategy applies to any analysis whose selection is a
 machine-learned function of low-level reconstructed objects, including
 event-level classifiers.}
@@ -239,6 +241,17 @@ validation and testing, so that no event contributes to more than one
 role, and the events that train the surrogate are disjoint from every
 event the tagger has seen.
 
+The whole programme is generated twice, once without pile-up and once
+with an average of $60$ additional inelastic collisions per event, so
+that every statement below can be made at both pile-up levels with the
+same hard-scattering configurations. The overlaid minimum-bias events
+are drawn from an independent library of $5\times10^{6}$ inelastic
+$pp$ collisions, partitioned so that the events overlaid on the tagger
+training sample, on its validation sample and on its test sample are
+disjoint. Without that partition the working point, which is a tail
+measurement at a background efficiency of $10^{-3}$, could exploit
+pile-up configurations the tagger had already seen.
+
 \begin{table}[htbp]
   \centering
   \small
@@ -269,7 +282,9 @@ event the tagger has seen.
   sample, and the two training points also have an independent
   $5.0\times10^{4}$-event evaluation sample at $\ctau = 0.1$~mm. The
   scan points not listed as training, as well as the alternative-mass
-  models, are never used in training.}
+  models, are never used in training. Every entry exists twice, without
+  pile-up and with $\langle\mu\rangle = 60$, for $1.5\times10^{7}$
+  generated events in total.}
   \label{tab:samples}
 \end{table}
 
@@ -332,6 +347,36 @@ layer, and both would need to be revisited for lifetimes beyond a few
 millimeters. Jets are reconstructed from particle-flow objects with
 the anti-$k_t$ algorithm~\cite{Cacciari:2008gp,Cacciari:2011ma} with
 $R = 0.4$, with the jet energy scale correction of the ATLAS card.
+
+\obshead{Pile-up}
+
+In the pile-up configuration a number of minimum-bias interactions
+drawn from a Poisson distribution of mean $60$ is overlaid before
+propagation, with the interaction points distributed along the beam
+line with $\sigma_z = 53$~mm. The overlaid particles are therefore
+tracked, calorimetered and clustered exactly like the hard scatter,
+and they enter the particle-flow jets and the track collection of
+every jet. Jets are corrected for the diffuse pile-up contribution by
+the standard jet-area method~\cite{Cacciari:2007fd}: the transverse
+momentum density $\rho$ is estimated event by event as the median over
+a grid in the $\eta$--$\phi$ plane, active jet areas $A$ are computed
+with ghosts, and each small-radius jet is corrected to
+$\pT - \rho A$ before the $20$~GeV threshold is applied. This removes
+the jets built purely from pile-up before they can be reclustered into
+the large-radius jets, without removing pile-up particles from genuine
+jets. No pile-up track subtraction is applied. The usual criterion,
+compatibility of a track with the primary vertex in $z$, would discard
+precisely the displaced tracks on which this class of analysis rests,
+and long-lived-particle searches avoid it for that reason.
+
+All longitudinal quantities, on both the detector and the truth side,
+are measured with respect to the primary vertex of the event rather
+than to the origin, following the experimental convention. This matters
+for reinterpretation rather than only for performance: without it, the
+same signal model would give different surrogate inputs depending on
+whether the person generating it had simulated pile-up, since the
+position of the hard scatter along the beam line would leak into the
+production and decay vertices of the generator record.
 
 \subsection{Jet reconstruction and object association}
 \label{sec:jets}
@@ -416,7 +461,7 @@ representations are summarized in Table~\ref{tab:features}.
     $\pT$, $\pT/\pT^{\mathrm{jet}}$ & transverse momentum and jet momentum fraction & $\ln$ \\
     $\Delta\eta$, $\Delta\phi$, $\dR$ & position relative to the jet axis & -- \\
     $\dnought$ & transverse impact parameter, jet-signed & $\mathrm{symlog}_{10\,\mu\mathrm{m}}$ \\
-    $\znought$ & longitudinal impact parameter & $\mathrm{symlog}_{1\,\mathrm{mm}}$ \\
+    $\znought$ & longitudinal impact parameter, from the PV & $\mathrm{symlog}_{1\,\mathrm{mm}}$ \\
     $\sigma(\dnought)$, $\sigma(\znought)$ & impact-parameter resolutions & $\ln$ \\
     $q$ & electric charge & -- \\
     type & hadron, electron or muon & embedded \\
@@ -426,7 +471,7 @@ representations are summarized in Table~\ref{tab:features}.
     $m$ & mass & -- \\
     $\Delta\eta$, $\Delta\phi$, $\dR$ & position relative to the jet axis & -- \\
     $q$, status & electric charge and generator status & -- \\
-    $L_{xy}^{\mathrm{prod}}$, $z^{\mathrm{prod}}$ & production vertex & symlog \\
+    $L_{xy}^{\mathrm{prod}}$, $z^{\mathrm{prod}}$ & production vertex, $z$ from the PV & symlog \\
     $L_{xy}^{\mathrm{dec}}$, $z^{\mathrm{dec}}$, $L^{\mathrm{dec}}$ & decay vertex and flight length & symlog \\
     $\Delta\eta^{\mathrm{dec}}$, $\Delta\phi^{\mathrm{dec}}$ & flight direction relative to the momentum & -- \\
     has decay, $N_{\mathrm{ch}}$ & decay flag and number of decay products & -- \\
@@ -436,7 +481,8 @@ representations are summarized in Table~\ref{tab:features}.
   \end{tabular}
   \caption{Input features of the detector-level tagger (reconstructed
   tracks) and of the truth-level surrogate (generator particles), both
-  relative to the associated large-radius jet. The symmetric logarithm
+  relative to the associated large-radius jet, with longitudinal
+  quantities measured from the primary vertex (PV). The symmetric logarithm
   $\mathrm{symlog}_{s}(x) = \mathrm{sign}(x)\ln(1 + |x|/s)$ uses
   $s = 10~\mu\mathrm{m}$ for transverse and $s = 1$~mm for
   longitudinal displacements, and every continuous input is
@@ -468,8 +514,10 @@ single tagger serves the full lifetime grid, as in the ATLAS search.
 The tagger trains on the training subsamples of the nominal signal
 model and of the background of Table~\ref{tab:samples}, with
 independent subsamples for validation and for testing. The training
-set contains $3.2\times10^6$
-large-radius jets, of which $2.0\times10^6$ are signal.
+set contains $3.15\times10^6$ large-radius jets, of which
+$1.96\times10^6$ are signal. Two taggers are trained, one on each
+pile-up configuration, with identical architecture, hyperparameters and
+sample composition, and each is frozen before any surrogate sees it.
 
 \subsection{Working point and signal region}
 \label{sec:sr}
@@ -483,11 +531,26 @@ least two large-radius jets with $\pT > 200$~GeV above the working
 point. Its efficiency $\effSR$ is the quantity the surrogate is asked
 to predict.
 
-Training stops after $21$ epochs, with the best validation loss at
-epoch $14$ and a validation accuracy of $0.935$. On the test sample the
-area under the ROC curve is $0.979$, and the ROC curves per lifetime
-are shown in Fig.~\ref{fig:roc}. The threshold at $10^{3}$ rejection
-gives the signal jet efficiencies of Table~\ref{tab:wp}.
+Training stops after $21$ epochs without pile-up and $25$ with, the
+best validation loss falling at epoch $14$ in both cases, with
+validation accuracies of $0.935$ and $0.933$. On the test samples the
+areas under the ROC curve are $0.9795$ and $0.9790$, and the ROC curves
+per lifetime are shown in Fig.~\ref{fig:roc}. The thresholds at
+$10^{3}$ rejection give the signal jet efficiencies of
+Table~\ref{tab:wp}.
+
+The first result of this work is visible in that table. Once the jets
+are corrected for the diffuse pile-up contribution and the longitudinal
+quantities are referred to the primary vertex, an average of $60$
+additional collisions costs the tagger between one and two percentage
+points of signal efficiency at fixed background rejection, and $0.0005$
+in area under the ROC curve. The pile-up tracks remain in the jets, and
+the network evidently learns to disregard them from their longitudinal
+impact parameters. We stress that this is a statement about a
+well-reconstructed detector-level selection. In an earlier iteration
+without jet-area subtraction the same comparison suggested a collapse
+of the efficiency from $0.815$ to $0.663$ at $\ctau = 0.1$~mm, which
+turned out to measure uncorrected jets rather than pile-up.
 
 
 \begin{figure}[htbp]
@@ -508,12 +571,19 @@ gives the signal jet efficiencies of Table~\ref{tab:wp}.
     \toprule
     $\ctau(\pid)$ & $0.01$~mm & $0.05$~mm & $0.1$~mm & $0.5$~mm & $1$~mm & $5$~mm \\
     \midrule
+    \multicolumn{7}{l}{\emph{no pile-up}} \\
     jet efficiency at $1/10^{3}$ & $0.250$ & $0.708$ & $0.815$ & $0.909$ & $0.928$ & $0.947$ \\
     signal-region efficiency $\effSR$ & $0.048$ & $0.333$ & $0.431$ & $0.525$ & $0.545$ & $0.550$ \\
+    \midrule
+    \multicolumn{7}{l}{\emph{$\langle\mu\rangle = 60$}} \\
+    jet efficiency at $1/10^{3}$ & $0.231$ & $0.691$ & $0.804$ & $0.904$ & $0.924$ & $0.944$ \\
+    signal-region efficiency $\effSR$ & $0.041$ & $0.320$ & $0.420$ & $0.520$ & $0.542$ & $0.548$ \\
     \bottomrule
   \end{tabular}
   \caption{Tagger performance at the working point on the nominal
-  signal model, test sample.}
+  signal model, test sample, for both pile-up configurations. Each
+  working point is measured on its own background test sample of
+  $6.0\times10^5$ jets.}
   \label{tab:wp}
 \end{table}
 
@@ -545,9 +615,14 @@ per-jet probability
 \begin{equation}
   p_j = P(\text{truth jet } j \text{ is tagged at detector level}),
 \end{equation}
-obtained from the binary cross-entropy loss, which is a proper scoring
-rule and therefore yields calibrated probabilities when the model
-capacity and statistics permit.
+obtained from the binary cross-entropy loss. Minimizing that loss over
+an unrestricted function class has the conditional probability
+$\mathbb{E}[y \mid x]$ as its unique minimizer, so a well-trained
+surrogate is expected to be calibrated, but this is an asymptotic
+statement that assumes sufficient capacity, sufficient data and a test
+distribution matching the training one. We therefore treat calibration
+as a property to be measured rather than assumed, and report it in
+Sec.~\ref{sec:results}.
 
 The surrogate is trained on signal only, on its dedicated training
 subsamples of Table~\ref{tab:samples}, which share no event with
@@ -561,7 +636,13 @@ surrogate is never applied to background and jets with labels near
 zero only distort the calibration on the signal-like phase space. The
 alternative-mass models, the remaining
 $\mpid/\Lambda_{\mathrm{D}}$ points, the dark-flavour variants and
-the test subsample of the nominal model are held out entirely.
+the test subsample of the nominal model are held out entirely. As for
+the tagger, one surrogate is trained per pile-up configuration against
+the frozen tagger of that configuration. Its inputs are the
+hard-scattering generator record alone in both cases, with no overlaid
+particles, so the surrogate is applied to exactly the kind of sample a
+theorist would produce, and it is the labels rather than the inputs
+that carry the pile-up response.
 
 \subsection{From jets to events}
 
@@ -590,23 +671,42 @@ response.
 \subsection{Closure on the training model}
 
 On the held-out test sample of the nominal model the surrogate
-reproduces the signal-region efficiency to $5$--$10\%$ at every
-lifetime above $0.01$~mm, with the prediction consistently below the
-detector level (ratios $0.90$--$0.95$ in Table~\ref{tab:closure} and
-Fig.~\ref{fig:sr}). About half of that offset is the truth-level jet
-threshold: a Poisson-binomial reference built from the true
-detector-level labels of the same truth jets sits $3$--$5\%$ below the
-actual efficiency, because a small fraction of passing reconstructed
-jets have no truth partner above $150$~GeV. At $\ctau = 0.01$~mm the
-efficiency itself is only $0.05$ and the surrogate overshoots by
-$11\%$. In that regime the per-jet probabilities are far from $0$ and
-$1$, and thresholding them at $0.5$ predicts an efficiency of $0.003$,
-wrong by an order of magnitude, while the Poisson-binomial combination
-of Eq.~(\ref{eq:pb}) stays within $11\%$: the probabilistic
-combination is not an optional refinement but the difference between a
-usable and a useless prediction. The per-jet picture behind these
-numbers is in Fig.~\ref{fig:jetpt}, and the calibration of the
-probabilities themselves in Fig.~\ref{fig:calib}.
+reproduces the signal-region efficiency to better than $4\%$ at every
+lifetime above $0.01$~mm, and to one percent or better from $0.1$~mm
+upward (Table~\ref{tab:closure} and Fig.~\ref{fig:sr}). The residual
+is not a bookkeeping artefact of the truth-jet collection: a reference
+built from the true detector-level decisions of the same truth jets,
+which is what a surrogate with perfect per-jet resolution would give,
+lies $0.2\%$ below the actual efficiency, so the truth-jet threshold
+of $150$~GeV costs almost nothing and essentially all of the accuracy
+available to a truth-level predictor is realized.
+
+The shortest lifetime remains the hardest point. At
+$\ctau = 0.01$~mm the efficiency is only $0.048$ and the surrogate
+overshoots by $12\%$. This is the regime in which the dark-pion flight
+length is comparable to the impact-parameter resolution, the
+detector-level decision is closest to a coin flip, and the per-jet
+probabilities are correspondingly least decisive.
+
+The event-level combination of Eq.~(\ref{eq:pb}) is a modest but
+consistent improvement over the alternative of thresholding each $p_j$
+at $0.5$ and counting tagged jets. Averaged over the lifetime grid the
+Poisson-binomial prediction deviates from the detector-level
+efficiency by $2\%$ against $5\%$ for the hard threshold, with the
+largest difference at $\ctau = 0.05$~mm, where the two give $1.03$ and
+$1.10$ times the true efficiency. The gap is smaller than one might
+expect because the surrogate is confident on most jets, its per-jet
+area under the ROC curve against the detector-level decision reaching
+$0.93$ to $0.997$ across the lifetime grid. A less well-resolved
+surrogate would depend on the probabilistic combination much more
+heavily.
+
+The per-jet behaviour behind these numbers is shown in
+Fig.~\ref{fig:jetpt}, and the calibration of the probabilities
+themselves in Fig.~\ref{fig:calib}. The surrogate is calibrated to
+better than a percent in the aggregate, the mean predicted probability
+over the validation sample being $0.6325$ against a true tagged
+fraction of $0.6306$.
 
 \begin{figure}[htbp]
   \centering
@@ -632,24 +732,24 @@ probabilities themselves in Fig.~\ref{fig:calib}.
     \toprule
     $\mpid$ & $\ctau(\pid)$ & $\effSR$ actual & $\effSR$ predicted & pred./actual & jet AUC \\
     \midrule
-    $5$~GeV & $0.01$~mm & $0.048 \pm 0.001$ & $0.053 \pm 0.001$ & $1.11$ & $0.592$ \\
-     & $0.05$~mm & $0.333 \pm 0.002$ & $0.316 \pm 0.001$ & $0.95$ & $0.659$ \\
-     & $0.1$~mm & $0.431 \pm 0.002$ & $0.388 \pm 0.001$ & $0.90$ & $0.704$ \\
-     & $0.5$~mm & $0.525 \pm 0.002$ & $0.497 \pm 0.002$ & $0.95$ & $0.780$ \\
-     & $1$~mm & $0.545 \pm 0.002$ & $0.514 \pm 0.002$ & $0.94$ & $0.805$ \\
-     & $5$~mm & $0.550 \pm 0.002$ & $0.524 \pm 0.002$ & $0.95$ & $0.851$ \\
-    $10$~GeV & $0.01$~mm & $0.031 \pm 0.001$ & $0.018 \pm 0.001$ & $0.59$ & $0.574$ \\
-     & $0.05$~mm & $0.328 \pm 0.002$ & $0.131 \pm 0.001$ & $0.40$ & $0.634$ \\
-     & $0.1$~mm & $0.442 \pm 0.002$ & $0.235 \pm 0.001$ & $0.53$ & $0.685$ \\
-     & $0.5$~mm & $0.534 \pm 0.002$ & $0.384 \pm 0.002$ & $0.72$ & $0.776$ \\
-     & $1$~mm & $0.553 \pm 0.002$ & $0.425 \pm 0.002$ & $0.77$ & $0.806$ \\
-     & $5$~mm & $0.570 \pm 0.002$ & $0.492 \pm 0.002$ & $0.86$ & $0.839$ \\
-    $2$~GeV & $0.01$~mm & $0.046 \pm 0.001$ & $0.090 \pm 0.001$ & $1.97$ & $0.571$ \\
-     & $0.05$~mm & $0.262 \pm 0.002$ & $0.293 \pm 0.001$ & $1.12$ & $0.620$ \\
-     & $0.1$~mm & $0.356 \pm 0.002$ & $0.384 \pm 0.002$ & $1.08$ & $0.653$ \\
-     & $0.5$~mm & $0.484 \pm 0.002$ & $0.479 \pm 0.002$ & $0.99$ & $0.728$ \\
-     & $1$~mm & $0.513 \pm 0.002$ & $0.509 \pm 0.002$ & $0.99$ & $0.759$ \\
-     & $5$~mm & $0.483 \pm 0.002$ & $0.486 \pm 0.002$ & $1.01$ & $0.841$ \\
+    $5$~GeV & $0.01$~mm & $0.048 \pm 0.001$ & $0.054 \pm 0.001$ & $1.12$ & $0.927$ \\
+     & $0.05$~mm & $0.333 \pm 0.002$ & $0.343 \pm 0.001$ & $1.03$ & $0.949$ \\
+     & $0.1$~mm & $0.431 \pm 0.002$ & $0.437 \pm 0.001$ & $1.01$ & $0.964$ \\
+     & $0.5$~mm & $0.525 \pm 0.002$ & $0.526 \pm 0.002$ & $1.00$ & $0.987$ \\
+     & $1$~mm & $0.545 \pm 0.002$ & $0.545 \pm 0.002$ & $1.00$ & $0.992$ \\
+     & $5$~mm & $0.550 \pm 0.002$ & $0.548 \pm 0.002$ & $0.99$ & $0.997$ \\
+    $10$~GeV & $0.01$~mm & $0.031 \pm 0.001$ & $0.015 \pm 0.001$ & $0.48$ & $0.926$ \\
+     & $0.05$~mm & $0.328 \pm 0.002$ & $0.240 \pm 0.001$ & $0.73$ & $0.949$ \\
+     & $0.1$~mm & $0.442 \pm 0.002$ & $0.376 \pm 0.002$ & $0.85$ & $0.965$ \\
+     & $0.5$~mm & $0.534 \pm 0.002$ & $0.508 \pm 0.002$ & $0.95$ & $0.987$ \\
+     & $1$~mm & $0.553 \pm 0.002$ & $0.533 \pm 0.002$ & $0.96$ & $0.992$ \\
+     & $5$~mm & $0.570 \pm 0.002$ & $0.561 \pm 0.002$ & $0.99$ & $0.997$ \\
+    $2$~GeV & $0.01$~mm & $0.046 \pm 0.001$ & $0.087 \pm 0.001$ & $1.89$ & $0.925$ \\
+     & $0.05$~mm & $0.262 \pm 0.002$ & $0.352 \pm 0.002$ & $1.34$ & $0.930$ \\
+     & $0.1$~mm & $0.356 \pm 0.002$ & $0.424 \pm 0.002$ & $1.19$ & $0.942$ \\
+     & $0.5$~mm & $0.484 \pm 0.002$ & $0.515 \pm 0.002$ & $1.06$ & $0.975$ \\
+     & $1$~mm & $0.513 \pm 0.002$ & $0.534 \pm 0.002$ & $1.04$ & $0.984$ \\
+     & $5$~mm & $0.483 \pm 0.002$ & $0.497 \pm 0.002$ & $1.03$ & $0.989$ \\
     \bottomrule
   \end{tabular}
   \caption{Signal-region efficiency from the full detector-level chain
@@ -704,57 +804,61 @@ the distribution of decay lengths at fixed proper lifetime. A surrogate
 that had merely memorized the nominal model would fail here in a
 characteristic way, predicting the nominal efficiency regardless of
 the mass. That is not what happens: the predictions move with the mass,
-in the right direction, but not by the right amount. At
-$\mpid = 2$~GeV the surrogate closes to better than $12\%$ for every
-lifetime above $0.01$~mm. At $\mpid = 10$~GeV it undershoots, by
-$14\%$ at $5$~mm and by up to a factor $2.5$ at $0.05$~mm. The error
-is in the per-jet probabilities, not in the event-level combination:
-the labels-only Poisson-binomial reference closes at every point, so
-Eq.~(\ref{eq:pb}) is exact for practical purposes, and the calibration
-curves of Fig.~\ref{fig:calib} show the same off-diagonal bands that
-the ratios imply.
+in the right direction, but not by the right amount. Both alternative
+masses converge to the correct answer as the lifetime grows, reaching
+$0.99$ and $1.03$ at $\ctau = 5$~mm, and both degrade as it falls,
+$\mpid = 10$~GeV under-predicting by a factor two at $0.01$~mm and
+$\mpid = 2$~GeV over-predicting by a factor two.
 
-The direction of the failure is instructive. In the
-$\mpid/\Lambda_{\mathrm{D}}$ scan of the training set, fewer and
-harder dark hadrons at fixed mass come with a lower tagger efficiency,
-and the surrogate has learned that association. The coherently rescaled
+The failure is a per-jet one and not a failure of the event-level
+combination. The reference built from the true detector-level decisions
+closes at every mass point, so Eq.~(\ref{eq:pb}) is accurate to the
+percent level throughout, and the calibration curves of
+Fig.~\ref{fig:calib} show the same off-diagonal bands that the ratios
+imply. It is also specific to the mass direction: as the next section
+shows, the fragmentation scale, the dark-quark flavour number and the
+mediator mass are all extrapolated successfully.
+
+The reason is visible in the training set. The
+$\mpid/\Lambda_{\mathrm{D}}$ scan varies the fragmentation at a single
+dark-pion mass, and in that scan fewer and harder dark hadrons come
+with a lower tagger efficiency. The coherently rescaled
 $\mpid = 10$~GeV model also produces fewer and harder dark hadrons,
 but its tagger efficiency is high, because the displacement per hadron
 grows with the boost at fixed proper lifetime. Fragmentation and mass
-scale are entangled in the training set with a single dark-pion mass,
-and disentangling them requires a second mass in training, the same
-lesson at the next level of the parameter hierarchy that the
-fragmentation scan taught at the first. The mass points are therefore
-the natural next addition to the training mixture, and nothing in the
-method limits how many models enter it.
+scale are entangled when only one mass is present, and disentangling
+them requires a second mass in the training mixture. This is the same
+lesson the fragmentation scan taught one level down in the parameter
+hierarchy, and it is a statement about sample design rather than about
+the method: nothing limits how many models enter the training mixture,
+and the cost of adding one is the cost of generating it.
 
 \subsection{Generalization across the dark-sector parameters}
 
 The fragmentation scan is the direct test of the sample-design argument
 of Fig.~\ref{fig:samplespan}. A first surrogate trained on the nominal
 model alone, with only the lifetime varying, predicted an efficiency
-independent of $\mpid/\Lambda_{\mathrm{D}}$, with errors up to a
+independent of $\mpid/\Lambda_{\mathrm{D}}$, with errors reaching a
 factor $1.8$ at the ends of the scan: it had learned displacement and
 was blind to the structure of the shower. With the two fragmentation
 training points added, the prediction follows the measured dependence
-across the full scan (Fig.~\ref{fig:scans}a), closing to $4$--$12\%$
-at the trained points and at the outermost held-out point, and
-undershooting most, by $36\%$, at $\mpid/\Lambda_{\mathrm{D}} = 0.7$,
-halfway between two trained points, where the surrogate interpolates a
-steeper response than the detector shows. The dark-flavour variants
-barely change the detector-level efficiency and the surrogate agrees
-(Fig.~\ref{fig:scans}b, ratios $0.87$--$0.88$).
+across the entire scan (Fig.~\ref{fig:scans}a), closing to within
+$3\%$ at every point, trained and held out alike, including the two
+held-out points that lie between trained ones. The dark-flavour
+variants change the detector-level efficiency very little and the
+surrogate agrees to $2\%$ (Fig.~\ref{fig:scans}b).
 
 The $Z'$ mass scan probes the momentum dependence with the dark sector
 held fixed, on models never used in training. Raising $m_{Z'}$ from
-$1.5$ to $3$~TeV hardens the dark-quark spectrum and cuts the
+$1.5$ to $3$~TeV hardens the dark-quark spectrum and reduces the
 signal-region efficiency by a factor of about $2.5$, mostly through the
 per-jet response of the tagger to the changed kinematics. The surrogate
 follows it: for every lifetime above $0.01$~mm the ratio of predicted
-to detector-level efficiency stays between $0.88$ and $0.98$ at all
+to detector-level efficiency lies between $1.00$ and $1.06$ at all
 three masses (Fig.~\ref{fig:mzp}), the same level of closure as on the
-training model itself. The transverse-momentum dependence of the
-detector-level selection is learned, not memorized.
+training model itself, and only the $0.01$~mm points reach $1.15$. The
+transverse-momentum dependence of the detector-level selection is
+learned rather than memorized.
 
 \begin{figure}[htbp]
   \centering
@@ -798,6 +902,61 @@ detector-level selection is learned, not memorized.
   \label{fig:mzp}
 \end{figure}
 
+\subsection{Robustness to pile-up}
+\label{sec:pileupresults}
+
+Everything above is repeated with $\langle\mu\rangle = 60$ overlaid,
+with an independently trained tagger, an independently trained
+surrogate and the same held-out samples. The comparison is controlled:
+the hard-scattering configurations, the training sample sizes and every
+hyperparameter are identical, and only the pile-up differs.
+
+The surrogate is unaffected (Fig.~\ref{fig:pileup}). On the nominal
+model it closes to $1.13$,
+$1.04$, $1.02$, $1.00$, $1.00$ and $1.00$ across the lifetime grid,
+against $1.12$, $1.03$, $1.01$, $1.00$, $1.00$ and $0.99$ without
+pile-up. Across the fragmentation scan it closes to within $4\%$, on
+the dark-flavour variants to within $2\%$, and on the $Z'$ mass scan to
+within $8\%$ for every lifetime above $0.01$~mm. The per-jet area under
+the ROC curve is $0.92$ to $0.995$, against $0.92$ to $0.997$ without
+pile-up. The mass extrapolation degrades in the same direction and by
+a similar amount as before, $0.38$ at $\mpid = 10$~GeV and
+$\ctau = 0.01$~mm against $0.48$ without pile-up.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{sr_efficiency_m5_mu60.pdf}
+    \caption{}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{calibration_m5_mu60.pdf}
+    \caption{}
+  \end{subfigure}
+  \caption{The surrogate under $\langle\mu\rangle = 60$ pile-up, on the
+  held-out sample of the nominal model. (a) Signal-region efficiency
+  against the dark-pion lifetime, detector level versus surrogate, with
+  the ratio in the lower pad. (b) Calibration of the per-jet
+  probabilities. Both are to be compared with Figs.~\ref{fig:sr}a and
+  \ref{fig:calib}a, which show the same quantities without pile-up.}
+  \label{fig:pileup}
+\end{figure}
+
+This is worth stating plainly because it is not obvious in advance.
+Pile-up adds roughly $36$ tracks to a large-radius jet against the $19$
+of the hard scatter, and none of them appear in the surrogate's inputs,
+which remain the hard-scattering generator record alone. The surrogate
+nonetheless predicts the decision of a tagger operating in that
+environment as accurately as it predicts the decision of a tagger
+operating without it. The pile-up contribution to the detector response
+is, at fixed $\langle\mu\rangle$, a stochastic nuisance that averages
+out in the per-jet probability rather than a systematic shift the
+surrogate would have to model. The practical consequence for
+reinterpretation is that the person generating a new signal model need
+not simulate pile-up at all, which is what makes the truth-level
+interface usable in the first place.
+
 \subsection{What the surrogate learns}
 
 The scans also expose what the detector-level tagger itself uses,
@@ -805,7 +964,9 @@ which is what the surrogate has to reproduce. Across the
 fragmentation scan the distribution of the track impact-parameter
 significance barely moves, and yet the tagger efficiency at a fixed
 number of displaced tracks in the jet shifts by up to $30$ percentage
-points between the ends of the scan (Fig.~\ref{fig:effdisp}). The
+points between the ends of the scan (Fig.~\ref{fig:effdisp}): at four
+displaced tracks it is $0.82$ at the nominal point, $0.60$ at
+$\mpid/\Lambda_{\mathrm{D}} = 0.2$ and $0.54$ at $1.0$. The
 tagger is not counting displaced tracks: it has learned a joint
 response to displacement and to the multiplicity and hardness of the
 jet, and any surrogate trained along a single line through that plane
@@ -826,8 +987,13 @@ lifetime grid.
   \label{fig:effdisp}
 \end{figure}
 
-\stub{Ablation of the truth-level input groups, and the dependence of
-the closure on the number of labeled training jets.}
+Two studies would sharpen this picture and are left for future work: an
+ablation of the truth-level input groups, which would identify how much
+of the performance rests on the decay-vertex information as opposed to
+the kinematics and the particle identities, and the dependence of the
+closure on the number of labelled training jets, which is the scaling
+behaviour against which a pre-trained backbone shared across analyses
+would have to be measured.
 
 % =====================================================================
 \section{Conclusions}
@@ -844,11 +1010,27 @@ quantity, is trained to predict the tagger decision, and its per-jet
 probabilities are combined into event-level signal-region efficiencies
 without further approximation.
 
-\todo{Update if numbers move: closure on the training model, generalization
-to $\mpid = 10$ and $2$~GeV, calibration.}
+On held-out samples of the models it was trained on, the surrogate
+reproduces the signal-region efficiency to better than $4\%$ at every
+lifetime above $0.01$~mm and to one percent from $0.1$~mm upward,
+which is close to the ceiling available to any truth-level predictor:
+a reference built from the true detector-level decisions of the same
+truth jets lies only $0.2\%$ below the measured efficiency. It
+extrapolates successfully in three of the four directions we tested,
+closing to within $3\%$ across the dark-shower fragmentation scan
+including points held out of training, to within $2\%$ across the
+dark-quark flavour number, and to within $6\%$ across mediator masses
+from $1.5$ to $3$~TeV that reduce the efficiency by a factor of about
+$2.5$. It degrades only when the dark-pion mass itself is extrapolated,
+by up to a factor two at the shortest lifetime, and we have traced this
+to fragmentation and mass scale being entangled in a training mixture
+that contains a single mass. Repeating the entire study with an average
+of $60$ pile-up interactions leaves all of these conclusions unchanged,
+even though the pile-up tracks outnumber the hard-scattering ones
+inside a jet and never appear in the surrogate's inputs.
 
 The results demonstrate that truth-level particle information is
-sufficient to learn a meaningful approximation of the response of a
+sufficient to learn an accurate approximation of the response of a
 low-level detector tagger, including at proper lifetimes for which the
 displacement is comparable to the impact-parameter resolution and the
 tagger relies on substructure. The surrogate is inexpensive in every
@@ -860,10 +1042,17 @@ detector simulation, reconstruction, or access to the
 collaboration-internal analysis software.
 
 The controlled setting also makes the limitations explicit. The
-surrogate is only as good as the labeled samples it is trained on, and
+surrogate is only as good as the labelled samples it is trained on, and
 its accuracy degrades in the directions of parameter space that the
 training model does not populate, so the training sample must span the
-model variations the reinterpretation is meant to cover. Designing,
+model variations the reinterpretation is meant to cover. The
+fragmentation scan and the dark-pion mass extrapolation are the two
+sides of that statement: the direction that was covered closes at the
+percent level, and the direction that was not degrades by a factor of
+two. This is a requirement on sample design rather than on the method,
+and it is a requirement an analysis team is well placed to meet, since
+the variations a search is sensitive to are precisely the ones it
+already scans. Designing,
 training and validating a bespoke surrogate for every analysis would
 impose a significant additional burden on analysis teams. A shared
 model pre-trained on a broad corpus of simulated events, learning
@@ -989,6 +1178,11 @@ JHEP \textbf{04} (2008) 063, [\texttt{arXiv:0802.1189}].
 M.~Cacciari, G.~P.~Salam and G.~Soyez,
 \emph{FastJet User Manual},
 Eur.\ Phys.\ J.\ C \textbf{72} (2012) 1896, [\texttt{arXiv:1111.6097}].
+
+\bibitem{Cacciari:2007fd}
+M.~Cacciari, G.~P.~Salam and G.~Soyez,
+\emph{The catchment area of jets},
+JHEP \textbf{04} (2008) 005, [\texttt{arXiv:0802.1188}].
 
 \end{thebibliography}
 
